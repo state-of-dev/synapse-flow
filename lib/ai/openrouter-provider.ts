@@ -13,8 +13,8 @@ export function createOpenRouterProvider(apiKey: string) {
         specificationVersion: "v2",
         provider: "openrouter",
         modelId,
-  // Indicate which URLs this provider supports (required by the type)
-  supportedUrls: OPENROUTER_SUPPORTED_URLS,
+        // Indicate which URLs this provider supports (required by the type)
+        supportedUrls: OPENROUTER_SUPPORTED_URLS,
 
         async doGenerate(options: any) {
           const response = await fetch(

@@ -44,7 +44,9 @@ export const myProvider = isTestEnvironment
         "llama-3.3-70b": openrouter("meta-llama/llama-3.3-70b-instruct"),
 
         // Mistral - Fast and efficient
-        "mistral-small": openrouter("mistralai/mistral-small-3.1-24b-instruct:free"),
+        "mistral-small": openrouter(
+          "mistralai/mistral-small-3.1-24b-instruct:free"
+        ),
 
         // Qwen - Strong reasoning
         "qwen-2.5-7b": openrouter("qwen/qwen-2.5-7b-instruct"),
