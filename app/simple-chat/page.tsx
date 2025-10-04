@@ -164,7 +164,24 @@ export default function SimpleChat() {
             const summaryContent = await callAI("openai/gpt-oss-120b", [
               {
                 role: "user",
-                content: `A continuación se muestran las respuestas de varios modelos de IA a la misma pregunta. Elabora un resumen consolidado que integre todos los hallazgos y puntos relevantes mencionados por los modelos, sin omitir información importante ni repetir ideas. Sé preciso, claro y estructurado, evitando redundancias y manteniendo la máxima cobertura informativa posible.\n\n${concatenatedResponses}\n\nResumen final (conciso pero exhaustivo):`,
+                content: `Actúa como un experto analista con amplio conocimiento en el tema. Tu objetivo es crear una respuesta definitiva y magistral basada en las siguientes perspectivas expertas. No las compares entre sí; úsalas como fundamento para construir una explicación superior.
+
+PROCESO DE SÍNTESIS:
+1. Absorbe los conceptos clave y matices de cada respuesta
+2. Identifica patrones, conexiones y aspectos complementarios
+3. Integra los insights en una narrativa coherente y elevada
+4. Añade valor mediante análisis profundo y contexto adicional
+
+CRITERIOS PARA LA RESPUESTA:
+- Construye sobre las ideas más sólidas de cada perspectiva
+- Mantén un hilo conductor claro y progresivo
+- Profundiza en los puntos más relevantes
+- Aporta una visión unificada que trascienda las respuestas individuales
+
+CONTEXTO:
+${concatenatedResponses}
+
+Basándote en todo lo anterior, desarrolla una respuesta magistral que eleve la discusión al siguiente nivel:`,
               },
             ]);
 
