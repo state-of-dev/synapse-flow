@@ -393,7 +393,7 @@ Basándote en todo lo anterior, desarrolla una respuesta magistral que eleve la 
               <div className="flex items-center gap-2">
                 <Switch
                   checked={sendToAll}
-                  onCheckedChange={(checked) => {
+                  onCheckedChange={(checked: boolean) => {
                     setSendToAll(checked);
                     setSummarizeAll(checked);
                   }}
