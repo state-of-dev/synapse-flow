@@ -1,16 +1,22 @@
-import type { LanguageModelV1 } from "@ai-sdk/provider";
+import type { LanguageModelV2 } from "@ai-sdk/provider";
 import { generateId } from "ai";
+
+// Supported URL patterns for the provider (top-level to avoid recreating RegExp repeatedly)
+const OPENROUTER_SUPPORTED_URLS: Record<string, RegExp[]> = {
+  openrouter: [/https:\/\/openrouter\.ai\/.*/],
+};
 
 export function createOpenRouterProvider(apiKey: string) {
   return {
-    languageModel(modelId: string): LanguageModelV1 {
+    languageModel(modelId: string): LanguageModelV2 {
       return {
-        specificationVersion: "v1",
+        specificationVersion: "v2",
         provider: "openrouter",
         modelId,
-        defaultObjectGenerationMode: "json",
+  // Indicate which URLs this provider supports (required by the type)
+  supportedUrls: OPENROUTER_SUPPORTED_URLS,
 
-        async doGenerate(options) {
+        async doGenerate(options: any) {
           const response = await fetch(
             "https://openrouter.ai/api/v1/chat/completions",
             {
@@ -44,17 +50,21 @@ export function createOpenRouterProvider(apiKey: string) {
           const choice = data.choices[0];
 
           return {
-            text: choice.message.content,
+            rawCall: { rawPrompt: options.prompt ?? null, rawSettings: {} },
             finishReason: choice.finish_reason,
             usage: {
-              promptTokens: data.usage?.prompt_tokens ?? 0,
-              completionTokens: data.usage?.completion_tokens ?? 0,
+              inputTokens: data.usage?.prompt_tokens ?? 0,
+              outputTokens: data.usage?.completion_tokens ?? 0,
+              totalTokens:
+                (data.usage?.prompt_tokens ?? 0) +
+                (data.usage?.completion_tokens ?? 0),
             },
-            rawResponse: { headers: response.headers },
+            content: [{ type: "text", text: choice.message.content }],
+            warnings: [],
           };
         },
 
-        async doStream(options) {
+        async doStream(options: any) {
           const response = await fetch(
             "https://openrouter.ai/api/v1/chat/completions",
             {
@@ -96,10 +106,13 @@ export function createOpenRouterProvider(apiKey: string) {
                 }
 
                 let buffer = "";
+                const streamId = generateId();
 
                 while (true) {
                   const { done, value } = await reader.read();
-                  if (done) break;
+                  if (done) {
+                    break;
+                  }
 
                   buffer += decoder.decode(value, { stream: true });
                   const lines = buffer.split("\n");
@@ -108,7 +121,9 @@ export function createOpenRouterProvider(apiKey: string) {
                   for (const line of lines) {
                     if (line.startsWith("data: ")) {
                       const data = line.slice(6);
-                      if (data === "[DONE]") continue;
+                      if (data === "[DONE]") {
+                        continue;
+                      }
 
                       try {
                         const parsed = JSON.parse(data);
@@ -116,8 +131,9 @@ export function createOpenRouterProvider(apiKey: string) {
 
                         if (delta?.content) {
                           controller.enqueue({
+                            id: streamId,
                             type: "text-delta",
-                            textDelta: delta.content,
+                            delta: delta.content,
                           });
                         }
 
@@ -126,13 +142,16 @@ export function createOpenRouterProvider(apiKey: string) {
                             type: "finish",
                             finishReason: parsed.choices[0].finish_reason,
                             usage: {
-                              promptTokens: parsed.usage?.prompt_tokens ?? 0,
-                              completionTokens:
+                              inputTokens: parsed.usage?.prompt_tokens ?? 0,
+                              outputTokens:
                                 parsed.usage?.completion_tokens ?? 0,
+                              totalTokens:
+                                (parsed.usage?.prompt_tokens ?? 0) +
+                                (parsed.usage?.completion_tokens ?? 0),
                             },
                           });
                         }
-                      } catch (e) {
+                      } catch (_err) {
                         // Skip invalid JSON
                       }
                     }

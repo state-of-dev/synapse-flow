@@ -6,9 +6,10 @@ import {
 import { isTestEnvironment } from "../constants";
 import { createOpenRouterProvider } from "./openrouter-provider";
 
-const openrouter = createOpenRouterProvider(
-  process.env.OPENROUTER_API_KEY ?? ""
-);
+const openrouter = (modelId: string) =>
+  createOpenRouterProvider(process.env.OPENROUTER_API_KEY ?? "").languageModel(
+    modelId
+  );
 
 export const myProvider = isTestEnvironment
   ? (() => {
