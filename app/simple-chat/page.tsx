@@ -17,11 +17,11 @@ import {
 // GROQ API key is loaded server-side in the `/api/groq` route. Do not expose it to the client.
 
 const models = [
-  { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B" },
-  { id: "deepseek-r1-distill-llama-70b", name: "DeepSeek R1 70B" },
   { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B" },
+  { id: "deepseek-r1-distill-llama-70b", name: "DeepSeek R1 70B" },
   { id: "qwen/qwen3-32b", name: "Qwen3 32B" },
   { id: "gemma2-9b-it", name: "Gemma 2 9B" },
+  { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B" },
   { id: "moonshotai/kimi-k2-instruct", name: "Kimi K2" },
 ];
 
