@@ -186,19 +186,27 @@ export function Chat({
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const isArtifactVisible = useArtifactSelector((state) => state.isVisible);
 
-  const sendMessage = useCallback(async (message?: ChatMessage) => {
+  const sendMessage = useCallback<typeof originalSendMessage>(async (message, options) => {
     if (!message) return;
 
     if (!sendToAll) {
       // Usar el sendMessage original del chatbot
-      return originalSendMessage(message);
+      return originalSendMessage(message, options);
     }
 
+    // Generar ID si no existe
+    const messageWithId: ChatMessage = {
+      id: (message as any).id || generateUUID(),
+      role: message.role || "user",
+      parts: (message as any).parts || [],
+      ...(message as any),
+    };
+
     // Modo orquesta: enviar a todos los modelos Groq
-    const messageText = message.parts?.map(p => p.type === 'text' ? p.text : '').join('') || '';
+    const messageText = messageWithId.parts?.map(p => p.type === 'text' ? p.text : '').join('') || '';
     if (!messageText.trim()) return;
 
-    setMessages((prev) => [...prev, message]);
+    setMessages((prev) => [...prev, messageWithId]);
 
     try {
       const targetModels = groqModels.filter(
