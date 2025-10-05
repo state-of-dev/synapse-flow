@@ -98,37 +98,120 @@ export function SimpleOrchestratorChat({
   initialMessages?: ChatMessage[];
 }) {
   const router = useRouter();
+
+  // Validar que tenemos un ID válido
+  useEffect(() => {
+    if (!id) {
+      console.error('[CLIENT] ID inválido:', id);
+      router.replace('/');
+      return;
+    }
+
+  }, [id, router, initialMessages.length]);
+
+  // Validar que tenemos un ID válido
+  useEffect(() => {
+    if (!id) {
+      console.error('[DEBUG] ID inválido:', id);
+      router.replace('/');
+    }
+  }, [id, router]);
   const { mutate } = useSWRConfig();
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [input, setInput] = useState<string>("");
   const [loading, setLoading] = useState(false);
-  const [selectedGroqModel, setSelectedGroqModel] = useState(groqModels[0]);
-  const [sendToAll, setSendToAll] = useState(true);
-  const [summarizeAll, setSummarizeAll] = useState(true);
+  // Inicializar estado desde localStorage o valores por defecto
+  const [state, setState] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const savedState = localStorage.getItem('chatState');
+      if (savedState) {
+        const parsed = JSON.parse(savedState);
+        return {
+          selectedGroqModel: parsed.selectedGroqModel || groqModels[0],
+          sendToAll: parsed.sendToAll ?? true,
+          summarizeAll: parsed.summarizeAll ?? false
+        };
+      }
+    }
+    return {
+      selectedGroqModel: groqModels[0],
+      sendToAll: true,
+      summarizeAll: false
+    };
+  });
+
+  const { selectedGroqModel, sendToAll, summarizeAll } = state;
+  const setSelectedGroqModel = useCallback((model: any) => {
+    setState(prev => ({ ...prev, selectedGroqModel: model }));
+  }, []);
+  const setSendToAll = useCallback((value: boolean) => {
+    setState(prev => ({ ...prev, sendToAll: value }));
+  }, []);
+  const setSummarizeAll = useCallback((value: boolean) => {
+    setState(prev => ({ ...prev, summarizeAll: value }));
+  }, []);
+
+  // Persistir estado completo en localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('chatState', JSON.stringify({
+        selectedGroqModel,
+        sendToAll,
+        summarizeAll
+      }));
+      console.log('[DEBUG] Estado persistido en localStorage:', {
+        selectedGroqModel,
+        sendToAll,
+        summarizeAll
+      });
+    }
+  }, [selectedGroqModel, sendToAll, summarizeAll]);
+
   const [hasNavigated, setHasNavigated] = useState(initialMessages.length > 0);
 
-  const sendToAllRef = useRef(sendToAll);
-  const summarizeAllRef = useRef(summarizeAll);
-  const selectedGroqModelRef = useRef(selectedGroqModel);
+  // Mantener referencias estables para los estados
+  const stateRef = useRef({
+    sendToAll,
+    summarizeAll,
+    selectedGroqModel,
+    messages: initialMessages,
+  });
+
+  // Actualizar referencias cuando cambien los estados
+  useEffect(() => {
+    stateRef.current.sendToAll = sendToAll;
+  }, [sendToAll]);
 
   useEffect(() => {
-    sendToAllRef.current = sendToAll;
-    summarizeAllRef.current = summarizeAll;
-    selectedGroqModelRef.current = selectedGroqModel;
-  }, [sendToAll, summarizeAll, selectedGroqModel]);
+    stateRef.current.summarizeAll = summarizeAll;
+  }, [summarizeAll]);
 
-  // Guardar chat en BD cuando cambian los mensajes
   useEffect(() => {
-    if (messages.length > 0) {
-      saveChatToDB(id, messages);
+    stateRef.current.selectedGroqModel = selectedGroqModel;
+  }, [selectedGroqModel]);
+
+  // Mantener estado sincronizado y persistente
+  useEffect(() => {
+    stateRef.current.messages = messages;
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('chatMessages_' + id, JSON.stringify(messages));
+      } catch (error) {
+        console.error('[CLIENT] Error guardando mensajes en localStorage:', error);
+      }
     }
   }, [messages, id]);
 
+  // Guardar chat en BD cuando cambian los mensajes
+  // Estado para controlar si estamos esperando respuestas
+  const awaitingResponses = useRef(false);
+  
+  // Removemos el efecto de auto-guardado ya que ahora guardamos explícitamente
+  // después de cada respuesta completa
+
   const saveChatToDB = async (chatId: string, messages: ChatMessage[]) => {
     try {
-      console.log(
-        `[CLIENT] Attempting to save chat ${chatId} with ${messages.length} messages`
-      );
+
       const response = await fetch("/api/chat/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -147,9 +230,28 @@ export function SimpleOrchestratorChat({
           .catch(() => ({ error: "Unknown error" }));
         console.error("[CLIENT] Error saving chat:", errorData);
       } else {
-        console.log("[CLIENT] Chat saved successfully");
-        // Actualizar el caché del sidebar para mostrar el nuevo chat
-        mutate(unstable_serialize(getChatHistoryPaginationKey));
+
+        
+        // Actualizar el caché del sidebar y la URL silenciosamente
+        try {
+          await Promise.all([
+            // Actualizar el caché del sidebar
+            mutate(
+              unstable_serialize(getChatHistoryPaginationKey),
+              undefined,
+              { revalidate: false, populateCache: false }
+            ),
+            // Actualizar la URL si es necesario
+            !hasNavigated ? (async () => {
+              setHasNavigated(true);
+              await router.replace(`/chat/${chatId}`, {
+                scroll: false
+              });
+            })() : Promise.resolve()
+          ]);
+        } catch (navError) {
+          console.error('[CLIENT] Error en navegación:', navError);
+        }
       }
     } catch (error) {
       console.error(
@@ -177,15 +279,20 @@ export function SimpleOrchestratorChat({
           .join("") || "";
       if (!messageText.trim()) return;
 
-      setMessages((prev) => [...prev, fullMessage]);
-      setInput("");
       setLoading(true);
+      setInput("");
+      
+      // Agregar mensaje del usuario
+      setMessages((prev) => {
+        const newMessages = [...prev, fullMessage];
+        stateRef.current.messages = newMessages;
+        return newMessages;
+      });
 
       try {
-        console.log("[DEBUG] sendToAllRef.current:", sendToAllRef.current);
-        if (sendToAllRef.current) {
+
+        if (stateRef.current.sendToAll) {
           // Modo orquesta: enviar a todos los modelos
-          console.log("[DEBUG] Modo ORQUESTA activado - enviando a todos");
           const targetModels = groqModels.filter(
             (m) => m.id !== "openai/gpt-oss-120b"
           );
@@ -248,16 +355,21 @@ export function SimpleOrchestratorChat({
           });
 
           const responses = await Promise.all(promises);
-          setMessages((prev) => [...prev, ...responses]);
+          setMessages((prev) => {
+            const newMessages = [...prev, ...responses];
+            stateRef.current.messages = newMessages;
+            console.log('[DEBUG] Estado después de actualizar mensajes (modo orquesta):', {
+              messages: newMessages,
+              stateRef: stateRef.current
+            });
+            return newMessages;
+          });
 
-          // Navegar a /chat/[id] después del primer mensaje
-          if (!hasNavigated) {
-            setHasNavigated(true);
-            router.push(`/chat/${id}`);
-          }
+          // Actualizar la URL sin causar una recarga completa
+          // La navegación se maneja en saveChatToDB
 
           // Generar resumen con GPT-120B
-          if (summarizeAllRef.current) {
+          if (stateRef.current.summarizeAll) {
             try {
               const responsesForSummary = responses.filter((r, idx) => {
                 const model = targetModels[idx];
@@ -372,10 +484,7 @@ Basándote en todo lo anterior, desarrolla una respuesta magistral que eleve la 
           }
         } else {
           // Modo individual: enviar solo al modelo seleccionado
-          console.log(
-            "[DEBUG] Modo INDIVIDUAL - enviando solo a:",
-            selectedGroqModelRef.current.name
-          );
+
           const simpleMessages = messages.map((msg) => ({
             role: msg.role,
             content:
@@ -384,7 +493,7 @@ Basándote en todo lo anterior, desarrolla una respuesta magistral que eleve la 
                 .join("") || "",
           }));
 
-          const content = await callGroqAI(selectedGroqModelRef.current.id, [
+          const content = await callGroqAI(stateRef.current.selectedGroqModel.id, [
             ...simpleMessages,
             { role: "user", content: messageText },
           ]);
@@ -397,7 +506,7 @@ Basándote en todo lo anterior, desarrolla una respuesta magistral que eleve la 
           }
           parts.push({
             type: "text",
-            text: `**${selectedGroqModelRef.current.name}:**\n${text}`,
+            text: `**${stateRef.current.selectedGroqModel.name}:**\n${text}`,
           });
 
           const assistantMessage: ChatMessage = {
@@ -406,12 +515,17 @@ Basándote en todo lo anterior, desarrolla una respuesta magistral que eleve la 
             parts,
           };
 
-          setMessages((prev) => [...prev, assistantMessage]);
+          setMessages((prev) => {
+            const newMessages = [...prev, assistantMessage];
+            stateRef.current.messages = newMessages;
 
-          // Navegar a /chat/[id] después del primer mensaje
+            return newMessages;
+          });
+
+          // Actualizar la URL sin causar una recarga completa
           if (!hasNavigated) {
             setHasNavigated(true);
-            router.push(`/chat/${id}`);
+            router.replace(`/chat/${id}`, { scroll: false });
           }
         }
       } catch (error) {
@@ -428,7 +542,7 @@ Basándote en todo lo anterior, desarrolla una respuesta magistral que eleve la 
         setLoading(false);
       }
     },
-    [messages, sendToAll, summarizeAll, selectedGroqModel]
+    [id, router]
   );
 
   const status = loading ? "streaming" : "ready";
