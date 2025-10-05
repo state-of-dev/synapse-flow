@@ -10,6 +10,11 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://chat.vercel.ai"),
   title: "hardcoded.chatbot",
   description: "A playground for exploring multiple LLM models",
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/favicon.ico",
+  },
 };
 
 export const viewport = {
@@ -70,6 +75,7 @@ export default function RootLayout({
             __html: THEME_COLOR_SCRIPT,
           }}
         />
+        <link href="/favicon.ico" rel="icon" />
       </head>
       <body className="antialiased">
         <ThemeProvider
