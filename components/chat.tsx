@@ -221,44 +221,20 @@ export function Chat({
 
     // Si no es modo orquesta, enviar solo al modelo seleccionado
     if (!sendToAll) {
-      setMessages((prev) => [...prev, messageWithId]);
-
+      // Usar originalSendMessage que maneja el estado internamente
       try {
-        const simpleMessages = messages.map(msg => ({
-          role: msg.role,
-          content: msg.parts?.map(p => p.type === 'text' ? p.text : '').join('') || ''
-        }));
-
-        const content = await callGroqAI(selectedGroqModel.id, [
-          ...simpleMessages,
-          { role: "user", content: messageText }
-        ]);
-
-        const { reasoning, text } = extractThinkTags(content);
-
-        const parts: any[] = [];
-        if (reasoning) {
-          parts.push({ type: "reasoning", text: reasoning });
-        }
-        parts.push({ type: "text", text: `**${selectedGroqModel.name}:**\n${text}` });
-
-        const assistantMessage: ChatMessage = {
-          id: generateUUID(),
-          role: "assistant",
-          parts,
-        };
-
-        setMessages((prev) => [...prev, assistantMessage]);
+        await originalSendMessage({
+          ...messageWithId,
+          content: messageText
+        }, options);
       } catch (error) {
         console.error("Error:", error);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: generateUUID(),
-            role: "assistant",
-            parts: [{ type: "text", text: "Error al enviar mensaje" }]
-          },
-        ]);
+        // Usar originalSendMessage para el mensaje de error también
+        await originalSendMessage({
+          id: generateUUID(),
+          role: "assistant",
+          content: "Error al enviar mensaje"
+        }, options);
       }
       return;
     }
