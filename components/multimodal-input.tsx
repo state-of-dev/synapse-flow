@@ -26,6 +26,7 @@ import type { Attachment, ChatMessage } from "@/lib/types";
 import type { AppUsage } from "@/lib/usage";
 import { cn } from "@/lib/utils";
 import { Context } from "./elements/context";
+import { Switch } from "@/components/ui/switch";
 import {
   PromptInput,
   PromptInputModelSelect,
@@ -63,6 +64,11 @@ function PureMultimodalInput({
   selectedModelId,
   onModelChange,
   usage,
+  sendToAll,
+  setSendToAll,
+  selectedGroqModel,
+  setSelectedGroqModel,
+  groqModels,
 }: {
   chatId: string;
   input: string;
@@ -79,6 +85,11 @@ function PureMultimodalInput({
   selectedModelId: string;
   onModelChange?: (modelId: string) => void;
   usage?: AppUsage;
+  sendToAll?: boolean;
+  setSendToAll?: (value: boolean) => void;
+  selectedGroqModel?: any;
+  setSelectedGroqModel?: (model: any) => void;
+  groqModels?: any[];
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
@@ -196,8 +207,12 @@ function PureMultimodalInput({
   }, []);
 
   const _modelResolver = useMemo(() => {
+    // Skip model resolution for Groq models
+    if (groqModels && groqModels.length > 0) {
+      return null;
+    }
     return myProvider.languageModel(selectedModelId);
-  }, [selectedModelId]);
+  }, [selectedModelId, groqModels]);
 
   const contextProps = useMemo(
     () => ({
@@ -306,7 +321,7 @@ function PureMultimodalInput({
             maxHeight={200}
             minHeight={44}
             onChange={handleInput}
-            placeholder="Send a message..."
+            placeholder="Envía un mensaje..."
             ref={textareaRef}
             rows={1}
             value={input}
@@ -318,12 +333,35 @@ function PureMultimodalInput({
             <AttachmentsButton
               fileInputRef={fileInputRef}
               selectedModelId={selectedModelId}
+              sendToAll={sendToAll}
               status={status}
             />
-            <ModelSelectorCompact
-              onModelChange={onModelChange}
-              selectedModelId={selectedModelId}
-            />
+            {groqModels && setSelectedGroqModel && selectedGroqModel ? (
+              <>
+                <GroqModelSelector
+                  groqModels={groqModels}
+                  selectedGroqModel={selectedGroqModel}
+                  sendToAll={sendToAll || false}
+                  setSelectedGroqModel={setSelectedGroqModel}
+                />
+                {setSendToAll !== undefined && (
+                  <div className="flex items-center gap-1.5 px-2">
+                    <Switch
+                      checked={sendToAll || false}
+                      onCheckedChange={(checked: boolean) => {
+                        setSendToAll(checked);
+                      }}
+                    />
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">Orquesta</span>
+                  </div>
+                )}
+              </>
+            ) : (
+              <ModelSelectorCompact
+                onModelChange={onModelChange}
+                selectedModelId={selectedModelId}
+              />
+            )}
           </PromptInputTools>
 
           {status === "submitted" ? (
@@ -361,6 +399,12 @@ export const MultimodalInput = memo(
     if (prevProps.selectedModelId !== nextProps.selectedModelId) {
       return false;
     }
+    if (prevProps.sendToAll !== nextProps.sendToAll) {
+      return false;
+    }
+    if (prevProps.selectedGroqModel !== nextProps.selectedGroqModel) {
+      return false;
+    }
 
     return true;
   }
@@ -370,21 +414,28 @@ function PureAttachmentsButton({
   fileInputRef,
   status,
   selectedModelId,
+  sendToAll,
 }: {
   fileInputRef: React.MutableRefObject<HTMLInputElement | null>;
   status: UseChatHelpers<ChatMessage>["status"];
   selectedModelId: string;
+  sendToAll?: boolean;
 }) {
   const isReasoningModel = selectedModelId === "chat-model-reasoning";
+  const isDisabled = status !== "ready" || isReasoningModel || sendToAll;
 
   return (
     <Button
-      className="aspect-square h-8 rounded-lg p-1 transition-colors hover:bg-accent"
+      className={`aspect-square h-8 rounded-lg p-1 transition-colors ${
+        isDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-accent'
+      }`}
       data-testid="attachments-button"
-      disabled={status !== "ready" || isReasoningModel}
+      disabled={isDisabled}
       onClick={(event) => {
         event.preventDefault();
-        fileInputRef.current?.click();
+        if (!isDisabled) {
+          fileInputRef.current?.click();
+        }
       }}
       variant="ghost"
     >
@@ -477,3 +528,57 @@ function PureStopButton({
 }
 
 const StopButton = memo(PureStopButton);
+
+function PureGroqModelSelector({
+  selectedGroqModel,
+  setSelectedGroqModel,
+  groqModels,
+  sendToAll,
+}: {
+  selectedGroqModel: any;
+  setSelectedGroqModel: (model: any) => void;
+  groqModels: any[];
+  sendToAll: boolean;
+}) {
+  return (
+    <PromptInputModelSelect
+      onValueChange={(modelName) => {
+        const model = groqModels.find((m) => m.name === modelName);
+        if (model) {
+          setSelectedGroqModel(model);
+        }
+      }}
+      value={selectedGroqModel?.name}
+    >
+      <Trigger
+        className={`flex h-8 items-center gap-2 rounded-lg border-0 bg-background px-2 shadow-none transition-colors focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 ${
+          sendToAll
+            ? 'text-muted-foreground opacity-50 cursor-not-allowed'
+            : 'text-foreground hover:bg-accent'
+        }`}
+        disabled={sendToAll}
+        type="button"
+      >
+        <CpuIcon size={16} />
+        <span className="hidden font-medium text-xs sm:block">
+          {selectedGroqModel?.name || "Seleccionar modelo"}
+        </span>
+        <ChevronDownIcon size={16} />
+      </Trigger>
+      <PromptInputModelSelectContent className="min-w-[260px] p-0">
+        <div className="flex flex-col gap-px">
+          {groqModels.map((model) => (
+            <SelectItem key={model.id} value={model.name}>
+              <div className="truncate font-medium text-xs">{model.name}</div>
+              <div className="mt-px truncate text-[10px] text-muted-foreground leading-tight">
+                {model.id}
+              </div>
+            </SelectItem>
+          ))}
+        </div>
+      </PromptInputModelSelectContent>
+    </PromptInputModelSelect>
+  );
+}
+
+const GroqModelSelector = memo(PureGroqModelSelector);
