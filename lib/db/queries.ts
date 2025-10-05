@@ -98,6 +98,12 @@ export async function saveChat({
       userId,
       title,
       visibility,
+    }).onConflictDoUpdate({
+      target: chat.id,
+      set: {
+        title,
+        visibility,
+      }
     });
   } catch (_error) {
     throw new ChatSDKError("bad_request:database", "Failed to save chat");

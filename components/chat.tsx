@@ -67,6 +67,25 @@ const groqModels = [
   { id: "groq/compound-mini", name: "Groq Compound Mini", includeInSummary: false },
 ];
 
+function extractThinkTags(content: string): { reasoning: string; text: string } {
+  const thinkRegex = /<think>([\s\S]*?)<\/think>/gi;
+  const matches = content.match(thinkRegex);
+
+  if (!matches) {
+    return { reasoning: "", text: content };
+  }
+
+  // Extraer todo el contenido de las etiquetas <think>
+  const reasoning = matches
+    .map(match => match.replace(/<\/?think>/gi, '').trim())
+    .join('\n\n');
+
+  // Remover las etiquetas <think> del texto
+  const text = content.replace(thinkRegex, '').trim();
+
+  return { reasoning, text };
+}
+
 async function callGroqAI(
   modelId: string,
   messages: Array<{ role: string; content: string }>
@@ -122,8 +141,8 @@ export function Chat({
   const [currentModelId, setCurrentModelId] = useState(initialChatModel);
   const currentModelIdRef = useRef(currentModelId);
   const [selectedGroqModel, setSelectedGroqModel] = useState(groqModels[0]);
-  const [sendToAll, setSendToAll] = useState(true);
-  const [summarizeAll, setSummarizeAll] = useState(true);
+  const [sendToAll, setSendToAll] = useState(false);
+  const [summarizeAll, setSummarizeAll] = useState(false);
 
   useEffect(() => {
     currentModelIdRef.current = currentModelId;
@@ -189,11 +208,6 @@ export function Chat({
   const sendMessage = useCallback<typeof originalSendMessage>(async (message, options) => {
     if (!message) return;
 
-    if (!sendToAll) {
-      // Usar el sendMessage original del chatbot
-      return originalSendMessage(message, options);
-    }
-
     // Generar ID si no existe y construir el mensaje completo
     const msg = message as any;
     const messageWithId: ChatMessage = {
@@ -203,10 +217,54 @@ export function Chat({
       ...msg,
     };
 
-    // Modo orquesta: enviar a todos los modelos Groq
     const messageText = messageWithId.parts?.map(p => p.type === 'text' ? p.text : '').join('') || '';
     if (!messageText.trim()) return;
 
+    // Si no es modo orquesta, enviar solo al modelo seleccionado
+    if (!sendToAll) {
+      setMessages((prev) => [...prev, messageWithId]);
+
+      try {
+        const simpleMessages = messages.map(msg => ({
+          role: msg.role,
+          content: msg.parts?.map(p => p.type === 'text' ? p.text : '').join('') || ''
+        }));
+
+        const content = await callGroqAI(selectedGroqModel.id, [
+          ...simpleMessages,
+          { role: "user", content: messageText }
+        ]);
+
+        const { reasoning, text } = extractThinkTags(content);
+
+        const parts: any[] = [];
+        if (reasoning) {
+          parts.push({ type: "reasoning", text: reasoning });
+        }
+        parts.push({ type: "text", text: `**${selectedGroqModel.name}:**\n${text}` });
+
+        const assistantMessage: ChatMessage = {
+          id: generateUUID(),
+          role: "assistant",
+          parts,
+        };
+
+        setMessages((prev) => [...prev, assistantMessage]);
+      } catch (error) {
+        console.error("Error:", error);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: generateUUID(),
+            role: "assistant",
+            parts: [{ type: "text", text: "Error al enviar mensaje" }]
+          },
+        ]);
+      }
+      return;
+    }
+
+    // Modo orquesta: enviar a todos los modelos Groq
     setMessages((prev) => [...prev, messageWithId]);
 
     try {
@@ -226,10 +284,18 @@ export function Chat({
             { role: "user", content: messageText }
           ]);
 
+          const { reasoning, text } = extractThinkTags(content);
+
+          const parts: any[] = [];
+          if (reasoning) {
+            parts.push({ type: "reasoning", text: `**${model.name} - Razonamiento:**\n${reasoning}` });
+          }
+          parts.push({ type: "text" as const, text: `**${model.name}:**\n${text}` });
+
           return {
             id: generateUUID(),
             role: "assistant" as const,
-            parts: [{ type: "text" as const, text: `**${model.name}:**\n${content}` }],
+            parts,
           };
         } catch (error) {
           console.error(`Error with ${model.name}:`, error);
@@ -264,7 +330,7 @@ export function Chat({
           );
 
           const processedResponses = responsesForSummary.map((r) => {
-            const textContent = r.parts.map(p => p.type === 'text' ? p.text : '').join('');
+            const textContent = r.parts?.map(p => p.type === 'text' ? p.text : '').join('') || '';
             return truncateToTokenLimit(textContent, maxTokensPerResponse);
           });
 
@@ -325,15 +391,26 @@ Basándote en todo lo anterior, desarrolla una respuesta magistral que eleve la 
             ]);
           }
 
+          const { reasoning: summaryReasoning, text: summaryText } = extractThinkTags(summaryContent);
+
+          const summaryParts: any[] = [];
+          if (summaryReasoning) {
+            summaryParts.push({
+              type: "reasoning",
+              text: summaryReasoning
+            });
+          }
+          summaryParts.push({
+            type: "text",
+            text: `**📝 Resumen (${summaryModel}):**\n${summaryText}`
+          });
+
           setMessages((prev) => [
             ...prev,
             {
               id: generateUUID(),
               role: "assistant",
-              parts: [{
-                type: "text",
-                text: `**📝 Resumen (${summaryModel}):**\n${summaryContent}`
-              }],
+              parts: summaryParts,
             },
           ]);
         } catch (error) {
