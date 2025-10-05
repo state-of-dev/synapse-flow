@@ -305,7 +305,7 @@ Basándote en todo lo anterior, desarrolla una respuesta magistral que eleve la 
         isArtifactVisible={false}
         isReadonly={false}
         messages={messages}
-        regenerate={() => {}}
+        regenerate={async () => {}}
         selectedModelId={selectedGroqModel.id}
         setMessages={setMessages}
         status={status}
