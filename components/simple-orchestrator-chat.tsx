@@ -170,7 +170,9 @@ export function SimpleOrchestratorChat({
   };
 
   const sendMessage = useCallback(
-    async (message: ChatMessage) => {
+    async (message?: ChatMessage, options?: any) => {
+      if (!message) return;
+
       const messageText =
         message.parts?.map((p) => (p.type === "text" ? p.text : "")).join("") ||
         "";
