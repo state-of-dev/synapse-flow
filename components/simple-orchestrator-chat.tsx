@@ -109,11 +109,21 @@ export function SimpleOrchestratorChat({
     }
   };
 
-  const sendMessage = useCallback(async (message: ChatMessage) => {
-    const messageText = message.parts.map(p => p.type === 'text' ? p.text : '').join('');
+  const sendMessage = useCallback(async (message?: any, options?: any) => {
+    if (!message) return;
+
+    // Generar ID si no existe y construir el mensaje completo
+    const messageWithId: ChatMessage = {
+      id: message.id || generateUUID(),
+      role: message.role || "user",
+      parts: message.parts || [],
+      ...message,
+    };
+
+    const messageText = messageWithId.parts?.map(p => p.type === 'text' ? p.text : '').join('') || '';
     if (!messageText.trim()) return;
 
-    setMessages((prev) => [...prev, message]);
+    setMessages((prev) => [...prev, messageWithId]);
     setInput("");
     setLoading(true);
 
@@ -128,7 +138,7 @@ export function SimpleOrchestratorChat({
           try {
             const simpleMessages = messages.map(msg => ({
               role: msg.role,
-              content: msg.parts.map(p => p.type === 'text' ? p.text : '').join('')
+              content: msg.parts?.map(p => p.type === 'text' ? p.text : '').join('') || ''
             }));
 
             const content = await callGroqAI(model.id, [
@@ -179,7 +189,7 @@ export function SimpleOrchestratorChat({
             );
 
             const processedResponses = responsesForSummary.map((r) => {
-              const textContent = r.parts.map(p => p.type === 'text' ? p.text : '').join('');
+              const textContent = r.parts?.map(p => p.type === 'text' ? p.text : '').join('') || '';
               return truncateToTokenLimit(textContent, maxTokensPerResponse);
             });
 
@@ -259,7 +269,7 @@ Basándote en todo lo anterior, desarrolla una respuesta magistral que eleve la 
         // Modo individual: enviar solo al modelo seleccionado
         const simpleMessages = messages.map(msg => ({
           role: msg.role,
-          content: msg.parts.map(p => p.type === 'text' ? p.text : '').join('')
+          content: msg.parts?.map(p => p.type === 'text' ? p.text : '').join('') || ''
         }));
 
         const content = await callGroqAI(selectedGroqModel.id, [
