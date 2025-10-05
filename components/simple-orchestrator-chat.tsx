@@ -31,45 +31,17 @@ function truncateToTokenLimit(text: string, maxTokens = 6000) {
 
 const groqModels = [
   { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B", includeInSummary: false },
-  {
-    id: "deepseek-r1-distill-llama-70b",
-    name: "DeepSeek R1 70B",
-    includeInSummary: true,
-  },
-  {
-    id: "llama-3.3-70b-versatile",
-    name: "Llama 3.3 70B",
-    includeInSummary: true,
-  },
-  { id: "qwen/qwen3-32b", name: "Qwen3 32B", includeInSummary: true },
-  {
-    id: "moonshotai/kimi-k2-instruct",
-    name: "Kimi K2",
-    includeInSummary: true,
-  },
   { id: "openai/gpt-oss-20b", name: "GPT-OSS 20B", includeInSummary: false },
+  { id: "deepseek-r1-distill-llama-70b", name: "DeepSeek R1 70B", includeInSummary: true },
+  { id: "qwen/qwen3-32b", name: "Qwen3 32B", includeInSummary: true },
+  { id: "moonshotai/kimi-k2-instruct-0905", name: "Kimi K2 0905", includeInSummary: false },
+  { id: "moonshotai/kimi-k2-instruct", name: "Kimi K2", includeInSummary: true },
+  { id: "meta-llama/llama-4-maverick-17b-128e-instruct", name: "Llama 4 Maverick", includeInSummary: false },
+  { id: "meta-llama/llama-4-scout-17b-16e-instruct", name: "Llama 4 Scout", includeInSummary: false },
+  { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B", includeInSummary: true },
   { id: "llama-3.1-8b-instant", name: "Llama 3.1 8B", includeInSummary: false },
-  {
-    id: "moonshotai/kimi-k2-instruct-0905",
-    name: "Kimi K2 0905",
-    includeInSummary: false,
-  },
-  {
-    id: "meta-llama/llama-4-maverick-17b-128e-instruct",
-    name: "Llama 4 Maverick",
-    includeInSummary: false,
-  },
-  {
-    id: "meta-llama/llama-4-scout-17b-16e-instruct",
-    name: "Llama 4 Scout",
-    includeInSummary: false,
-  },
   { id: "groq/compound", name: "Groq Compound", includeInSummary: false },
-  {
-    id: "groq/compound-mini",
-    name: "Groq Compound Mini",
-    includeInSummary: false,
-  },
+  { id: "groq/compound-mini", name: "Groq Compound Mini", includeInSummary: false },
 ];
 
 function extractThinkTags(content: string): {
@@ -154,7 +126,9 @@ export function SimpleOrchestratorChat({
 
   const saveChatToDB = async (chatId: string, messages: ChatMessage[]) => {
     try {
-      console.log(`[CLIENT] Attempting to save chat ${chatId} with ${messages.length} messages`);
+      console.log(
+        `[CLIENT] Attempting to save chat ${chatId} with ${messages.length} messages`
+      );
       const response = await fetch("/api/chat/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -178,7 +152,10 @@ export function SimpleOrchestratorChat({
         mutate(unstable_serialize(getChatHistoryPaginationKey));
       }
     } catch (error) {
-      console.error("[CLIENT] Network error saving chat:", error instanceof Error ? error.message : error);
+      console.error(
+        "[CLIENT] Network error saving chat:",
+        error instanceof Error ? error.message : error
+      );
     }
   };
 
@@ -195,8 +172,9 @@ export function SimpleOrchestratorChat({
       };
 
       const messageText =
-        fullMessage.parts?.map((p) => (p.type === "text" ? p.text : "")).join("") ||
-        "";
+        fullMessage.parts
+          ?.map((p) => (p.type === "text" ? p.text : ""))
+          .join("") || "";
       if (!messageText.trim()) return;
 
       setMessages((prev) => [...prev, fullMessage]);
@@ -204,10 +182,10 @@ export function SimpleOrchestratorChat({
       setLoading(true);
 
       try {
-        console.log('[DEBUG] sendToAllRef.current:', sendToAllRef.current);
+        console.log("[DEBUG] sendToAllRef.current:", sendToAllRef.current);
         if (sendToAllRef.current) {
           // Modo orquesta: enviar a todos los modelos
-          console.log('[DEBUG] Modo ORQUESTA activado - enviando a todos');
+          console.log("[DEBUG] Modo ORQUESTA activado - enviando a todos");
           const targetModels = groqModels.filter(
             (m) => m.id !== "openai/gpt-oss-120b"
           );
@@ -394,7 +372,10 @@ Basándote en todo lo anterior, desarrolla una respuesta magistral que eleve la 
           }
         } else {
           // Modo individual: enviar solo al modelo seleccionado
-          console.log('[DEBUG] Modo INDIVIDUAL - enviando solo a:', selectedGroqModelRef.current.name);
+          console.log(
+            "[DEBUG] Modo INDIVIDUAL - enviando solo a:",
+            selectedGroqModelRef.current.name
+          );
           const simpleMessages = messages.map((msg) => ({
             role: msg.role,
             content:
@@ -414,7 +395,10 @@ Basándote en todo lo anterior, desarrolla una respuesta magistral que eleve la 
           if (reasoning) {
             parts.push({ type: "reasoning", text: reasoning });
           }
-          parts.push({ type: "text", text: `**${selectedGroqModelRef.current.name}:**\n${text}` });
+          parts.push({
+            type: "text",
+            text: `**${selectedGroqModelRef.current.name}:**\n${text}`,
+          });
 
           const assistantMessage: ChatMessage = {
             id: generateUUID(),
@@ -487,7 +471,7 @@ Basándote en todo lo anterior, desarrolla una respuesta magistral que eleve la 
           setMessages={setMessages}
           setSelectedGroqModel={setSelectedGroqModel}
           setSendToAll={(checked) => {
-            console.log('[DEBUG] Switch cambiado a:', checked);
+            console.log("[DEBUG] Switch cambiado a:", checked);
             setSendToAll(checked);
             setSummarizeAll(checked);
           }}

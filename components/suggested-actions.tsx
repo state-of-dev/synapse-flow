@@ -19,12 +19,40 @@ async function generateSuggestions(): Promise<string[]> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "moonshotai/kimi-k2-instruct",
         messages: [
           {
             role: "user",
-            content:
-              "Genera exactamente 4 sugerencias útiles para pedirle a una IA sobre programación en JavaScript/React/Next.js. Cada sugerencia debe ser una SOLICITUD CONCRETA (no una pregunta simple) en español de máximo 70 caracteres. Ejemplos: 'Genera una guía de estudio de React', 'Crea un componente de login con validación', 'Explica patrones de diseño en Next.js', 'Optimiza este código React'. Las sugerencias deben pedir que la IA GENERE, CREE, EXPLIQUE o AYUDE con algo concreto. Responde SOLO con las 4 sugerencias separadas por saltos de línea, sin numeración ni texto adicional.",
+            content: `Eres un experto en desarrollo web. Genera exactamente 4 sugerencias accionables y útiles para un chatbot de programación.
+
+REGLAS ESTRICTAS:
+- Cada sugerencia debe ser una SOLICITUD CONCRETA, no una pregunta
+- Máximo 70 caracteres por sugerencia
+- Usar verbos imperativos: Genera, Crea, Explica, Optimiza, Desarrolla, Construye, Diseña, Implementa
+- Enfocadas en JavaScript, React, Next.js, TypeScript, CSS, APIs, bases de datos
+- Variadas en dificultad y temas
+- Prácticas y directamente aplicables
+- En español
+- SIN numeración, SIN viñetas, SIN texto adicional
+
+EJEMPLOS BUENOS:
+✅ Genera una guía de React Hooks con ejemplos
+✅ Crea un sistema de autenticación con JWT
+✅ Explica el patrón de Server Components en Next.js
+✅ Optimiza el rendimiento de este componente React
+
+EJEMPLOS MALOS (NO HACER):
+❌ ¿Cómo funciona React? (es pregunta, no solicitud)
+❌ Ayúdame con React (muy vago)
+❌ 1. Genera... (tiene numeración)
+
+FORMATO DE RESPUESTA (solo las 4 líneas):
+[Sugerencia 1]
+[Sugerencia 2]
+[Sugerencia 3]
+[Sugerencia 4]
+
+Genera 4 sugerencias ahora:`,
           },
         ],
       }),

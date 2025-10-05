@@ -315,17 +315,22 @@ export async function DELETE(request: Request) {
     return new ChatSDKError("bad_request:api").toResponse();
   }
 
-  const session = await auth();
-
-  if (!session?.user) {
-    return new ChatSDKError("unauthorized:chat").toResponse();
-  }
+  // Sin autenticación - cualquiera puede borrar cualquier chat
+  // const session = await auth();
+  // if (!session?.user) {
+  //   return new ChatSDKError("unauthorized:chat").toResponse();
+  // }
 
   const chat = await getChatById({ id });
 
-  if (chat?.userId !== session.user.id) {
-    return new ChatSDKError("forbidden:chat").toResponse();
+  if (!chat) {
+    return new ChatSDKError("not_found:database", "Chat not found").toResponse();
   }
+
+  // Sin verificación de usuario - borrado libre
+  // if (chat?.userId !== session.user.id) {
+  //   return new ChatSDKError("forbidden:chat").toResponse();
+  // }
 
   const deletedChat = await deleteChatById({ id });
 

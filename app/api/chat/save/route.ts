@@ -1,11 +1,28 @@
 import { NextResponse } from "next/server";
 import { saveChat, saveMessages } from "@/lib/db/queries";
+import { db } from "@/lib/db";
+import { user } from "@/lib/db/schema";
 
 // ID de usuario fijo para app sin autenticación
 const FIXED_USER_ID = "00000000-0000-0000-0000-000000000001";
 
+async function ensureFixedUserExists() {
+  try {
+    await db.insert(user).values({
+      id: FIXED_USER_ID,
+      email: "system@app.local",
+      password: null,
+    }).onConflictDoNothing();
+  } catch (error) {
+    console.error("[SAVE] Error ensuring user exists:", error);
+  }
+}
+
 export async function POST(request: Request) {
   try {
+    // Asegurar que el usuario fijo existe
+    await ensureFixedUserExists();
+
     const { chatId, messages } = await request.json();
 
     if (!chatId || !messages) {
@@ -52,10 +69,18 @@ export async function POST(request: Request) {
     console.log(`[SAVE] ${dbMessages.length} messages saved successfully`);
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[SAVE] Error saving chat:", error);
+    console.error("[SAVE] Error details:", {
+      message: error?.message,
+      stack: error?.stack,
+      code: error?.code,
+    });
     return NextResponse.json(
-      { error: "Failed to save chat" },
+      {
+        error: "Failed to save chat",
+        details: error?.message || "Unknown error"
+      },
       { status: 500 }
     );
   }
