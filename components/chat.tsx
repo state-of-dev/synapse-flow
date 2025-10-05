@@ -194,12 +194,13 @@ export function Chat({
       return originalSendMessage(message, options);
     }
 
-    // Generar ID si no existe
+    // Generar ID si no existe y construir el mensaje completo
+    const msg = message as any;
     const messageWithId: ChatMessage = {
-      id: (message as any).id || generateUUID(),
-      role: message.role || "user",
-      parts: (message as any).parts || [],
-      ...(message as any),
+      id: msg.id || generateUUID(),
+      role: msg.role || "user",
+      parts: msg.parts || [],
+      ...msg,
     };
 
     // Modo orquesta: enviar a todos los modelos Groq
