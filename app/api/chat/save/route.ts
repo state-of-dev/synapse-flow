@@ -1,15 +1,11 @@
 import { NextResponse } from "next/server";
 import { saveChat, saveMessages } from "@/lib/db/queries";
-import { auth } from "@/app/(auth)/auth";
+
+// ID de usuario fijo para app sin autenticación
+const FIXED_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      console.log("[SAVE] No session or user ID");
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const { chatId, messages } = await request.json();
 
     if (!chatId || !messages) {
@@ -34,9 +30,9 @@ export async function POST(request: Request) {
     // Guardar chat usando la función de queries
     await saveChat({
       id: chatId,
-      userId: session.user.id,
+      userId: FIXED_USER_ID,
       title,
-      visibility: "private",
+      visibility: "public",
     });
 
     console.log("[SAVE] Chat saved successfully");

@@ -1,15 +1,7 @@
 import {
   customProvider,
-  extractReasoningMiddleware,
-  wrapLanguageModel,
 } from "ai";
 import { isTestEnvironment } from "../constants";
-import { createOpenRouterProvider } from "./openrouter-provider";
-
-const openrouter = (modelId: string) =>
-  createOpenRouterProvider(process.env.OPENROUTER_API_KEY ?? "").languageModel(
-    modelId
-  );
 
 export const myProvider = isTestEnvironment
   ? (() => {
@@ -30,34 +22,6 @@ export const myProvider = isTestEnvironment
     })()
   : customProvider({
       languageModels: {
-        // DeepSeek - Most capable free model
-        "deepseek-chat": openrouter("deepseek/deepseek-chat-v3.1:free"),
-        "deepseek-reasoning": wrapLanguageModel({
-          model: openrouter("deepseek/deepseek-chat-v3.1:free"),
-          middleware: extractReasoningMiddleware({ tagName: "think" }),
-        }),
-
-        // Meta Llama 4 - Latest and most powerful
-        "llama-4-maverick": openrouter("meta-llama/llama-4-maverick:free"),
-
-        // Meta Llama 3.3 - Powerful 70B model
-        "llama-3.3-70b": openrouter("meta-llama/llama-3.3-70b-instruct"),
-
-        // Mistral - Fast and efficient
-        "mistral-small": openrouter(
-          "mistralai/mistral-small-3.1-24b-instruct:free"
-        ),
-
-        // Qwen - Strong reasoning
-        "qwen-2.5-7b": openrouter("qwen/qwen-2.5-7b-instruct"),
-
-        // Default aliases for backward compatibility
-        "chat-model": openrouter("deepseek/deepseek-chat-v3.1:free"),
-        "chat-model-reasoning": wrapLanguageModel({
-          model: openrouter("deepseek/deepseek-chat-v3.1:free"),
-          middleware: extractReasoningMiddleware({ tagName: "think" }),
-        }),
-        "title-model": openrouter("deepseek/deepseek-chat-v3.1:free"),
-        "artifact-model": openrouter("meta-llama/llama-3.3-70b-instruct"),
+        // Placeholder - usando Groq directamente via /api/groq
       },
     });

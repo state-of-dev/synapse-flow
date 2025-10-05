@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
-export function AppSidebar({ user }: { user: User | undefined }) {
+export function AppSidebar({ user }: { user?: User | undefined }) {
   const router = useRouter();
   const { setOpenMobile } = useSidebar();
 

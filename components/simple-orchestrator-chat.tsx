@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useSWRConfig } from "swr";
 import { unstable_serialize } from "swr/infinite";
 import { ChatHeader } from "@/components/chat-header";
@@ -124,6 +125,7 @@ export function SimpleOrchestratorChat({
   id: string;
   initialMessages?: ChatMessage[];
 }) {
+  const router = useRouter();
   const { mutate } = useSWRConfig();
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [input, setInput] = useState<string>("");
@@ -131,6 +133,7 @@ export function SimpleOrchestratorChat({
   const [selectedGroqModel, setSelectedGroqModel] = useState(groqModels[0]);
   const [sendToAll, setSendToAll] = useState(true);
   const [summarizeAll, setSummarizeAll] = useState(true);
+  const [hasNavigated, setHasNavigated] = useState(initialMessages.length > 0);
 
   const sendToAllRef = useRef(sendToAll);
   const summarizeAllRef = useRef(summarizeAll);
@@ -268,6 +271,12 @@ export function SimpleOrchestratorChat({
 
           const responses = await Promise.all(promises);
           setMessages((prev) => [...prev, ...responses]);
+
+          // Navegar a /chat/[id] después del primer mensaje
+          if (!hasNavigated) {
+            setHasNavigated(true);
+            router.push(`/chat/${id}`);
+          }
 
           // Generar resumen con GPT-120B
           if (summarizeAllRef.current) {
@@ -414,6 +423,12 @@ Basándote en todo lo anterior, desarrolla una respuesta magistral que eleve la 
           };
 
           setMessages((prev) => [...prev, assistantMessage]);
+
+          // Navegar a /chat/[id] después del primer mensaje
+          if (!hasNavigated) {
+            setHasNavigated(true);
+            router.push(`/chat/${id}`);
+          }
         }
       } catch (error) {
         console.error("Error:", error);
