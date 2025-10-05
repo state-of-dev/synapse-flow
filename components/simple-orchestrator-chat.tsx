@@ -170,15 +170,23 @@ export function SimpleOrchestratorChat({
   };
 
   const sendMessage = useCallback(
-    async (message?: ChatMessage, options?: any) => {
+    async (message?: any, options?: any) => {
       if (!message) return;
 
+      // Construir mensaje completo con valores por defecto
+      const fullMessage: ChatMessage = {
+        id: message.id || generateUUID(),
+        role: message.role || "user",
+        parts: message.parts || [],
+        ...message,
+      };
+
       const messageText =
-        message.parts?.map((p) => (p.type === "text" ? p.text : "")).join("") ||
+        fullMessage.parts?.map((p) => (p.type === "text" ? p.text : "")).join("") ||
         "";
       if (!messageText.trim()) return;
 
-      setMessages((prev) => [...prev, message]);
+      setMessages((prev) => [...prev, fullMessage]);
       setInput("");
       setLoading(true);
 
