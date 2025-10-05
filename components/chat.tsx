@@ -58,7 +58,6 @@ const groqModels = [
   { id: "qwen/qwen3-32b", name: "Qwen3 32B", includeInSummary: true },
   { id: "moonshotai/kimi-k2-instruct", name: "Kimi K2", includeInSummary: true },
   { id: "openai/gpt-oss-20b", name: "GPT-OSS 20B", includeInSummary: false },
-  { id: "gemma2-9b-it", name: "Gemma 2 9B", includeInSummary: false },
   { id: "llama-3.1-8b-instant", name: "Llama 3.1 8B", includeInSummary: false },
   { id: "moonshotai/kimi-k2-instruct-0905", name: "Kimi K2 0905", includeInSummary: false },
   { id: "meta-llama/llama-4-maverick-17b-128e-instruct", name: "Llama 4 Maverick", includeInSummary: false },

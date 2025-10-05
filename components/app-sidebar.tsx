@@ -63,7 +63,9 @@ export function AppSidebar({ user }: { user: User | undefined }) {
         <SidebarHistory user={user} />
       </SidebarContent>
       <SidebarFooter>
-        <ThemeToggle />
+        <div className="flex items-center justify-center">
+          <ThemeToggle />
+        </div>
       </SidebarFooter>
     </Sidebar>
   );

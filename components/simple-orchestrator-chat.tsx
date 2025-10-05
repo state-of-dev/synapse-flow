@@ -44,7 +44,6 @@ const groqModels = [
     includeInSummary: true,
   },
   { id: "openai/gpt-oss-20b", name: "GPT-OSS 20B", includeInSummary: false },
-  { id: "gemma2-9b-it", name: "Gemma 2 9B", includeInSummary: false },
   { id: "llama-3.1-8b-instant", name: "Llama 3.1 8B", includeInSummary: false },
   {
     id: "moonshotai/kimi-k2-instruct-0905",

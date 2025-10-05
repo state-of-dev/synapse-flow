@@ -15,27 +15,19 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <div className="flex items-center justify-between p-2">
-        <span className="font-medium text-sm" />
-        <Button size="sm" variant="ghost" disabled>
-          <MoonIcon />
-          <span className="ml-2">Tema</span>
-        </Button>
-      </div>
+      <Button className="h-8 p-1 md:h-fit md:p-2" variant="ghost" disabled>
+        <MoonIcon />
+      </Button>
     );
   }
 
   return (
-    <div className="flex items-center justify-between p-2">
-      <span className="font-medium text-sm" />
-      <Button
-        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-        size="sm"
-        variant="ghost"
-      >
-        {theme === "dark" ? <SunIcon /> : <MoonIcon />}
-        <span className="ml-2">{theme === "dark" ? "Claro" : "Oscuro"}</span>
-      </Button>
-    </div>
+    <Button
+      className="h-8 p-1 md:h-fit md:p-2"
+      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+      variant="ghost"
+    >
+      {theme === "dark" ? <SunIcon /> : <MoonIcon />}
+    </Button>
   );
 }
