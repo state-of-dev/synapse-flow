@@ -186,14 +186,16 @@ export function Chat({
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const isArtifactVisible = useArtifactSelector((state) => state.isVisible);
 
-  const sendMessage = useCallback(async (message: ChatMessage) => {
+  const sendMessage = useCallback(async (message?: ChatMessage) => {
+    if (!message) return;
+
     if (!sendToAll) {
       // Usar el sendMessage original del chatbot
       return originalSendMessage(message);
     }
 
     // Modo orquesta: enviar a todos los modelos Groq
-    const messageText = message.parts.map(p => p.type === 'text' ? p.text : '').join('');
+    const messageText = message.parts?.map(p => p.type === 'text' ? p.text : '').join('') || '';
     if (!messageText.trim()) return;
 
     setMessages((prev) => [...prev, message]);
@@ -207,7 +209,7 @@ export function Chat({
         try {
           const simpleMessages = messages.map(msg => ({
             role: msg.role,
-            content: msg.parts.map(p => p.type === 'text' ? p.text : '').join('')
+            content: msg.parts?.map(p => p.type === 'text' ? p.text : '').join('') || ''
           }));
 
           const content = await callGroqAI(model.id, [
