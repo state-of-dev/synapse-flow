@@ -317,6 +317,7 @@ Basándote en todo lo anterior, desarrolla una respuesta magistral que eleve la 
           setMessages((prev) => [
             ...prev,
             {
+              id: generateUUID(),
               role: "assistant",
               parts: [{
                 type: "text",
@@ -333,6 +334,7 @@ Basándote en todo lo anterior, desarrolla una respuesta magistral que eleve la 
       setMessages((prev) => [
         ...prev,
         {
+          id: generateUUID(),
           role: "assistant",
           parts: [{ type: "text", text: "Error al enviar mensaje" }]
         },
