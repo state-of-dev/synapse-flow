@@ -350,6 +350,7 @@ Basándote en todo lo anterior, desarrolla una respuesta magistral que eleve la 
   useEffect(() => {
     if (query && !hasAppendedQuery) {
       sendMessage({
+        id: generateUUID(),
         role: "user" as const,
         parts: [{ type: "text", text: query }],
       });
