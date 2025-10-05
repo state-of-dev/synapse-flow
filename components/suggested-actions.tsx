@@ -19,12 +19,12 @@ async function generateSuggestions(): Promise<string[]> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "openai/gpt-oss-20b",
+        model: "llama-3.3-70b-versatile",
         messages: [
           {
             role: "user",
             content:
-              "Genera exactamente 4 sugerencias breves y variadas para comenzar una conversación sobre JavaScript, React y Next.js. Cada sugerencia debe ser una pregunta o solicitud en español de máximo 60 caracteres. Las sugerencias pueden ser sobre hooks de React, componentes, patrones de diseño, optimización, Server Components de Next.js, App Router, TypeScript, estado. Responde SOLO con las 4 sugerencias separadas por saltos de línea, sin numeración ni texto adicional.",
+              "Genera exactamente 4 sugerencias útiles para pedirle a una IA sobre programación en JavaScript/React/Next.js. Cada sugerencia debe ser una SOLICITUD CONCRETA (no una pregunta simple) en español de máximo 70 caracteres. Ejemplos: 'Genera una guía de estudio de React', 'Crea un componente de login con validación', 'Explica patrones de diseño en Next.js', 'Optimiza este código React'. Las sugerencias deben pedir que la IA GENERE, CREE, EXPLIQUE o AYUDE con algo concreto. Responde SOLO con las 4 sugerencias separadas por saltos de línea, sin numeración ni texto adicional.",
           },
         ],
       }),

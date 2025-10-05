@@ -7,6 +7,18 @@ export type ChatModel = {
 };
 
 export const chatModels: ChatModel[] = [
+  // Meta Llama Models
+  {
+    id: "llama-4-maverick",
+    name: "Llama 4 Maverick",
+    description: "Meta's latest Llama 4 model - 400B parameters, cutting-edge performance",
+  },
+  {
+    id: "llama-3.3-70b",
+    name: "Llama 3.3 70B",
+    description: "Powerful 70B model - great for complex reasoning and long contexts",
+  },
+
   // DeepSeek - Most capable free model
   {
     id: "deepseek-chat",
@@ -17,20 +29,6 @@ export const chatModels: ChatModel[] = [
     id: "deepseek-reasoning",
     name: "DeepSeek Reasoning",
     description: "DeepSeek with advanced chain-of-thought reasoning for complex problems",
-  },
-
-  // Meta Llama 4 - Latest and most powerful
-  {
-    id: "llama-4-maverick",
-    name: "Llama 4 Maverick",
-    description: "Meta's latest Llama 4 model - 400B parameters, cutting-edge performance",
-  },
-
-  // Meta Llama 3.3 - Powerful
-  {
-    id: "llama-3.3-70b",
-    name: "Llama 3.3 70B",
-    description: "Powerful 70B model - great for complex reasoning and long contexts",
   },
 
   // Mistral - Fast and efficient

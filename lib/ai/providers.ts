@@ -58,6 +58,6 @@ export const myProvider = isTestEnvironment
           middleware: extractReasoningMiddleware({ tagName: "think" }),
         }),
         "title-model": openrouter("deepseek/deepseek-chat-v3.1:free"),
-        "artifact-model": openrouter("deepseek/deepseek-chat-v3.1:free"),
+        "artifact-model": openrouter("meta-llama/llama-3.3-70b-instruct"),
       },
     });

@@ -1,11 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSWRConfig } from "swr";
+import { unstable_serialize } from "swr/infinite";
 import { ChatHeader } from "@/components/chat-header";
 import type { ChatMessage } from "@/lib/types";
 import { generateUUID } from "@/lib/utils";
 import { Messages } from "./messages";
 import { MultimodalInput } from "./multimodal-input";
+import { getChatHistoryPaginationKey } from "./sidebar-history";
 
 // Constantes para evitar regex en tiempo de ejecución
 const WORD_SPLIT_REGEX = /\s+/;
@@ -121,6 +124,7 @@ export function SimpleOrchestratorChat({
   id: string;
   initialMessages?: ChatMessage[];
 }) {
+  const { mutate } = useSWRConfig();
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [input, setInput] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -147,6 +151,7 @@ export function SimpleOrchestratorChat({
 
   const saveChatToDB = async (chatId: string, messages: ChatMessage[]) => {
     try {
+      console.log(`[CLIENT] Attempting to save chat ${chatId} with ${messages.length} messages`);
       const response = await fetch("/api/chat/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -155,16 +160,22 @@ export function SimpleOrchestratorChat({
 
       if (!response.ok) {
         // Ignorar errores de autenticación silenciosamente
-        if (response.status === 401) return;
+        if (response.status === 401) {
+          console.log("[CLIENT] Unauthorized - user not logged in");
+          return;
+        }
 
         const errorData = await response
           .json()
           .catch(() => ({ error: "Unknown error" }));
-        console.error("Error saving chat:", errorData);
+        console.error("[CLIENT] Error saving chat:", errorData);
+      } else {
+        console.log("[CLIENT] Chat saved successfully");
+        // Actualizar el caché del sidebar para mostrar el nuevo chat
+        mutate(unstable_serialize(getChatHistoryPaginationKey));
       }
     } catch (error) {
-      // Ignorar errores de red silenciosamente
-      // console.error("Error saving chat:", error instanceof Error ? error.message : error);
+      console.error("[CLIENT] Network error saving chat:", error instanceof Error ? error.message : error);
     }
   };
 
