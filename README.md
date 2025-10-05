@@ -34,7 +34,7 @@
 - [Auth.js](https://authjs.dev)
   - Simple and secure authentication
 
-## Model Providers
+## Model Providerss
 
 This template uses the [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) to access multiple AI models through a unified interface. The default configuration includes [xAI](https://x.ai) models (`grok-2-vision-1212`, `grok-3-mini`) routed through the gateway.
 
