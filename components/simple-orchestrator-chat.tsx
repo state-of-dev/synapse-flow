@@ -290,7 +290,7 @@ Basándote en todo lo anterior, desarrolla una respuesta magistral que eleve la 
     }
   }, [messages, sendToAll, summarizeAll, selectedGroqModel]);
 
-  const status = loading ? "in_progress" : "ready";
+  const status = loading ? "streaming" : "ready";
 
   return (
     <div className="overscroll-behavior-contain flex h-dvh min-w-0 touch-pan-y flex-col bg-background">
