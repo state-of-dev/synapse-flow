@@ -2,7 +2,7 @@
 
 import type { UseChatHelpers } from "@ai-sdk/react";
 import { motion } from "framer-motion";
-import { memo, useEffect, useState } from "react";
+import { memo, useMemo } from "react";
 import type { ChatMessage } from "@/lib/types";
 import { Suggestion } from "./elements/suggestion";
 import type { VisibilityType } from "./visibility-selector";
@@ -13,101 +13,69 @@ type SuggestedActionsProps = {
   selectedVisibilityType: VisibilityType;
 };
 
-async function generateSuggestions(): Promise<string[]> {
-  try {
-    const response = await fetch("/api/groq", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "moonshotai/kimi-k2-instruct",
-        messages: [
-          {
-            role: "user",
-            content: `Eres un experto en desarrollo web. Genera exactamente 4 sugerencias accionables y útiles para un chatbot de programación.
+// Sugerencias trágicas y melancólicas estáticas
+const allSuggestions = [
+  // Desesperanza técnica
+  "Debuggea el dolor que llevas dentro",
+  "Refactoriza tus arrepentimientos en código",
+  "Crea algo que nadie verá jamás",
+  "Optimiza el vacío de tu existencia",
 
-REGLAS ESTRICTAS:
-- Cada sugerencia debe ser una SOLICITUD CONCRETA, no una pregunta
-- Máximo 70 caracteres por sugerencia
-- Usar verbos imperativos: Genera, Crea, Explica, Optimiza, Desarrolla, Construye, Diseña, Implementa
-- Enfocadas en JavaScript, React, Next.js, TypeScript, CSS, APIs, bases de datos
-- Variadas en dificultad y temas
-- Prácticas y directamente aplicables
-- En español
-- SIN numeración, SIN viñetas, SIN texto adicional
+  // Nihilismo del desarrollo
+  "Explica por qué seguimos programando",
+  "Diseña tu propia tumba digital",
+  "Implementa la desesperanza en componentes",
+  "Construye castillos que se derrumbarán",
 
-EJEMPLOS BUENOS:
-✅ Genera una guía de React Hooks con ejemplos
-✅ Crea un sistema de autenticación con JWT
-✅ Explica el patrón de Server Components en Next.js
-✅ Optimiza el rendimiento de este componente React
+  // Futilidad del código
+  "Genera errores que nunca se corregirán",
+  "Escribe comentarios que nadie leerá",
+  "Crea tests que siempre fallarán",
+  "Documenta el sinsentido de la vida",
 
-EJEMPLOS MALOS (NO HACER):
-❌ ¿Cómo funciona React? (es pregunta, no solicitud)
-❌ Ayúdame con React (muy vago)
-❌ 1. Genera... (tiene numeración)
+  // Sufrimiento del dev
+  "Compila tus sueños rotos en JavaScript",
+  "Deploya al abismo sin retorno",
+  "Mergea tus fracasos con main",
+  "Commitea tu desesperación al repositorio",
 
-FORMATO DE RESPUESTA (solo las 4 líneas):
-[Sugerencia 1]
-[Sugerencia 2]
-[Sugerencia 3]
-[Sugerencia 4]
+  // Soledad del programador
+  "Programa solo en la oscuridad eterna",
+  "Escribe código que morirá contigo",
+  "Crea APIs que nadie consumirá",
+  "Diseña interfaces para el vacío",
 
-Genera 4 sugerencias ahora:`,
-          },
-        ],
-      }),
-    });
+  // Tragedia de la tecnología
+  "Explica el sufrimiento de los callbacks",
+  "Implementa promesas que nunca se cumplirán",
+  "Refactoriza el legacy code de tu alma",
+  "Optimiza componentes para la nada",
 
-    const data = await response.json();
+  // Dolor existencial
+  "Crea hooks que capturen tu agonía",
+  "Genera estados de tristeza profunda",
+  "Diseña patrones de autocompasión",
+  "Implementa el ciclo infinito del dolor",
 
-    if (data.choices?.[0]?.message?.content) {
-      const suggestions = data.choices[0].message.content
-        .split("\n")
-        .map((s: string) => s.trim())
-        .filter((s: string) => s.length > 0 && s.length <= 100)
-        .slice(0, 4);
+  // Desolación técnica
+  "Explica por qué todos los deploys fallan",
+  "Crea un sistema que nadie mantendrá",
+  "Diseña arquitecturas destinadas a colapsar",
+  "Implementa features que nadie pedía",
 
-      if (suggestions.length === 4) {
-        return suggestions;
-      }
-    }
-  } catch (error) {
-    console.error("Error generating suggestions:", error);
-  }
-
-  // Fallback a sugerencias estáticas si falla la generación
-  return [
-    "¿Cuáles son las ventajas de usar Next.js?",
-    "Explica cómo funciona useEffect en React",
-    "¿Cuándo usar useState vs useReducer?",
-    "Mejores prácticas para optimizar React apps",
-  ];
-}
+  // Melancolía del código
+  "Escribe funciones que lloran en silencio",
+  "Crea componentes huérfanos sin padre",
+  "Genera mutaciones que destruyen todo",
+  "Deploya cambios que nadie notará",
+];
 
 function PureSuggestedActions({ chatId, sendMessage }: SuggestedActionsProps) {
-  const [suggestedActions, setSuggestedActions] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const loadSuggestions = async () => {
-      setLoading(true);
-      const suggestions = await generateSuggestions();
-      setSuggestedActions(suggestions);
-      setLoading(false);
-    };
-
-    loadSuggestions();
+  // Selecciona 4 sugerencias aleatorias cada vez que se monta el componente
+  const suggestedActions = useMemo(() => {
+    const shuffled = [...allSuggestions].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 4);
   }, []);
-
-  if (loading) {
-    return (
-      <div className="grid w-full gap-2 sm:grid-cols-2">
-        {[1, 2, 3, 4].map((i) => (
-          <div className="h-14 animate-pulse rounded-lg bg-muted" key={i} />
-        ))}
-      </div>
-    );
-  }
 
   return (
     <div
