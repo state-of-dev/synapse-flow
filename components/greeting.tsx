@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 
 // Saludos trágicos y melancólicos estáticos
 const greetings = [
@@ -49,11 +49,12 @@ const greetings = [
 ];
 
 export const Greeting = () => {
-  // Selecciona un saludo trágico aleatorio cada vez que se monta el componente
-  const greeting = useMemo(
-    () => greetings[Math.floor(Math.random() * greetings.length)],
-    []
-  );
+  // Selecciona un saludo trágico aleatorio solo en el cliente
+  const [greeting, setGreeting] = useState(greetings[0]);
+
+  useEffect(() => {
+    setGreeting(greetings[Math.floor(Math.random() * greetings.length)]);
+  }, []);
 
   return (
     <div
