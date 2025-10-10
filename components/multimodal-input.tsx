@@ -44,7 +44,7 @@ import {
   StopIcon,
 } from "./icons";
 import { PreviewAttachment } from "./preview-attachment";
-import { SuggestedActions } from "./suggested-actions";
+// import { SuggestedActions } from "./suggested-actions";
 import { Button } from "./ui/button";
 import type { VisibilityType } from "./visibility-selector";
 
@@ -249,15 +249,14 @@ function PureMultimodalInput({
 
   return (
     <div className={cn("relative flex w-full flex-col gap-4", className)}>
-      {messages.length === 0 &&
+      {/* {messages.length === 0 &&
         attachments.length === 0 &&
         uploadQueue.length === 0 && (
           <SuggestedActions
             chatId={chatId}
             selectedVisibilityType={selectedVisibilityType}
             sendMessage={sendMessage}
-          />
-        )}
+          /> */}  
 
       <input
         className="-top-4 -left-4 pointer-events-none fixed size-0.5 opacity-0"
@@ -352,7 +351,7 @@ function PureMultimodalInput({
                         setSendToAll(checked);
                       }}
                     />
-                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">Orquesta</span>
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">Omnicall</span>
                   </div>
                 )}
               </>
