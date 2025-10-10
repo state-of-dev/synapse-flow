@@ -290,6 +290,7 @@ export function Chat({
           .join("") || "";
       if (!messageText.trim()) return;
 
+<<<<<<< HEAD
       setMessages((prev) => [...prev, messageWithId]);
 
       try {
@@ -316,6 +317,24 @@ export function Chat({
             parts: [{ type: "text", text: "Error al enviar mensaje" }],
           },
         ]);
+=======
+    // Si no es modo orquesta, enviar solo al modelo seleccionado
+    if (!sendToAll) {
+      // Usar originalSendMessage que maneja el estado internamente
+      try {
+        await originalSendMessage({
+          ...messageWithId,
+          content: messageText
+        }, options);
+      } catch (error) {
+        console.error("Error:", error);
+        // Usar originalSendMessage para el mensaje de error también
+        await originalSendMessage({
+          id: generateUUID(),
+          role: "assistant",
+          content: "Error al enviar mensaje"
+        }, options);
+>>>>>>> c50c5538c7f29d13f0a87f69f37c03f5c19f5bc5
       }
     },
     [messages, sendToAll, selectedGroqModel, setMessages]

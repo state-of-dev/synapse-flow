@@ -17,6 +17,7 @@ const groqModels = [
   { id: "moonshotai/kimi-k2-instruct-0905", name: "Kimi K2 0905" },
   { id: "qwen/qwen3-32b", name: "Qwen3 32B" },
   { id: "meta-llama/llama-4-maverick-17b-128e-instruct", name: "Llama 4 Maverick" },
+  { id: "meta-llama/llama-4-scout-17b-16e-instruct", name: "Llama 4 Scout" },
 ];
 
 function extractThinkTags(content: string): {
@@ -30,12 +31,10 @@ function extractThinkTags(content: string): {
     return { reasoning: "", text: content };
   }
 
-  // Extraer todo el contenido de las etiquetas <think>
   const reasoning = matches
     .map((match) => match.replace(/<\/?think>/gi, "").trim())
     .join("\n\n");
 
-  // Remover las etiquetas <think> del texto
   const text = content.replace(thinkRegex, "").trim();
 
   return { reasoning, text };
@@ -193,9 +192,6 @@ export function SimpleOrchestratorChat({
 
   const saveChatToDB = async (chatId: string, messages: ChatMessage[]) => {
     try {
-      console.log(
-        `[CLIENT] Attempting to save chat ${chatId} with ${messages.length} messages`
-      );
       const response = await fetch("/api/chat/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -204,10 +200,8 @@ export function SimpleOrchestratorChat({
 
       if (response.ok) {
         console.log("[CLIENT] Chat saved successfully");
-        // Actualizar el caché del sidebar para mostrar el nuevo chat
         mutate(unstable_serialize(getChatHistoryPaginationKey));
       } else {
-        // Ignorar errores de autenticación silenciosamente
         if (response.status === 401) {
           console.log("[CLIENT] Unauthorized - user not logged in");
           return;
@@ -230,7 +224,6 @@ export function SimpleOrchestratorChat({
     async (message?: any, options?: any) => {
       if (!message) return;
 
-      // Construir mensaje completo con valores por defecto
       const fullMessage: ChatMessage = {
         id: message.id || generateUUID(),
         role: message.role || "user",
@@ -282,7 +275,7 @@ export function SimpleOrchestratorChat({
         setLoading(false);
       }
     },
-    [messages, sendToAll, selectedGroqModel]
+    [messages, sendToAll, selectedGroqModel, id, hasNavigated]
   );
 
   const status = loading ? "streaming" : "ready";
