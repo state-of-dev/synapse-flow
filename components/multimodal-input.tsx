@@ -338,6 +338,7 @@ function PureMultimodalInput({
             {groqModels && setSelectedGroqModel && selectedGroqModel ? (
               <>
                 <GroqModelSelector
+                  attachments={attachments}
                   groqModels={groqModels}
                   selectedGroqModel={selectedGroqModel}
                   sendToAll={sendToAll || false}
@@ -535,16 +536,23 @@ function PureGroqModelSelector({
   setSelectedGroqModel,
   groqModels,
   sendToAll,
+  attachments,
 }: {
   selectedGroqModel: any;
   setSelectedGroqModel: (model: any) => void;
   groqModels: any[];
   sendToAll: boolean;
+  attachments: Attachment[];
 }) {
+  // Si hay imágenes y NO está en modo orquesta, filtrar solo modelos con vision
+  const availableModels = attachments.length > 0 && !sendToAll
+    ? groqModels.filter((m) => m.supportsVision)
+    : groqModels;
+
   return (
     <PromptInputModelSelect
       onValueChange={(modelName) => {
-        const model = groqModels.find((m) => m.name === modelName);
+        const model = availableModels.find((m) => m.name === modelName);
         if (model) {
           setSelectedGroqModel(model);
         }
@@ -568,7 +576,7 @@ function PureGroqModelSelector({
       </Trigger>
       <PromptInputModelSelectContent className="min-w-[260px] p-0">
         <div className="flex flex-col gap-px">
-          {groqModels.map((model) => (
+          {availableModels.map((model) => (
             <SelectItem key={model.id} value={model.name}>
               <div className="truncate font-medium text-xs">{model.name}</div>
               <div className="mt-px truncate text-[10px] text-muted-foreground leading-tight">

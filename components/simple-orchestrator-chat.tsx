@@ -252,6 +252,19 @@ export function SimpleOrchestratorChat({
     attachmentsRef.current = attachments;
   }, [sendToAll, selectedGroqModel, attachments]);
 
+  // Cambiar automáticamente a Llama 4 Maverick cuando se sube una imagen en modo individual
+  useEffect(() => {
+    if (attachments.length > 0 && !sendToAll) {
+      // Si el modelo actual no soporta vision, cambiar a Maverick
+      if (!selectedGroqModel.supportsVision) {
+        const maverickModel = groqModels.find(m => m.id === "meta-llama/llama-4-maverick-17b-128e-instruct");
+        if (maverickModel) {
+          setSelectedGroqModel(maverickModel);
+        }
+      }
+    }
+  }, [attachments, sendToAll, selectedGroqModel]);
+
   // Guardar chat en BD cuando cambian los mensajes
   useEffect(() => {
     if (messages.length > 0) {
