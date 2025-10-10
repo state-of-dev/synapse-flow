@@ -421,7 +421,9 @@ function PureAttachmentsButton({
   sendToAll?: boolean;
 }) {
   const isReasoningModel = selectedModelId === "chat-model-reasoning";
-  const isDisabled = status !== "ready" || isReasoningModel || sendToAll;
+  // Solo deshabilitar si el status no está listo o es un modelo de razonamiento
+  // Si sendToAll está activo, solo enviará a modelos con vision
+  const isDisabled = status !== "ready" || isReasoningModel;
 
   return (
     <Button

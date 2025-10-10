@@ -12,11 +12,12 @@ import { MultimodalInput } from "./multimodal-input";
 import { getChatHistoryPaginationKey } from "./sidebar-history";
 
 const groqModels = [
-  { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B" },
-  { id: "groq/compound", name: "Groq Compound" },
-  { id: "moonshotai/kimi-k2-instruct-0905", name: "Kimi K2 0905" },
-  { id: "qwen/qwen3-32b", name: "Qwen3 32B" },
-  { id: "meta-llama/llama-4-maverick-17b-128e-instruct", name: "Llama 4 Maverick" },
+  { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B", supportsVision: false },
+  { id: "groq/compound", name: "Groq Compound", supportsVision: false },
+  { id: "moonshotai/kimi-k2-instruct-0905", name: "Kimi K2 0905", supportsVision: false },
+  { id: "qwen/qwen3-32b", name: "Qwen3 32B", supportsVision: false },
+  { id: "meta-llama/llama-4-maverick-17b-128e-instruct", name: "Llama 4 Maverick", supportsVision: true },
+  { id: "meta-llama/llama-4-scout-17b-16e-instruct", name: "Llama 4 Scout", supportsVision: true },
 ];
 
 function extractThinkTags(content: string): {
@@ -41,7 +42,7 @@ function extractThinkTags(content: string): {
 
 async function callGroqAI(
   modelId: string,
-  messages: Array<{ role: string; content: string }>
+  messages: Array<{ role: string; content: string | Array<any> }>
 ) {
   const cleanMessages = messages.map(({ role, content }) => ({
     role,
@@ -67,7 +68,8 @@ async function callGroqAI(
 async function sendToSingleModel(
   model: typeof groqModels[0],
   messages: ChatMessage[],
-  userMessage: string
+  userMessage: string,
+  attachments: Array<{ url: string; contentType: string }> = []
 ): Promise<ChatMessage> {
   const simpleMessages = messages.map((msg) => ({
     role: msg.role,
@@ -75,9 +77,38 @@ async function sendToSingleModel(
       msg.parts?.map((p) => (p.type === "text" ? p.text : "")).join("") || "",
   }));
 
+  // Preparar el último mensaje del usuario con imágenes si las hay
+  let userContent: string | Array<any> = userMessage;
+
+  if (attachments.length > 0 && model.supportsVision) {
+    const contentParts: Array<any> = [];
+
+    // Agregar texto primero
+    if (userMessage.trim()) {
+      contentParts.push({
+        type: "text",
+        text: userMessage,
+      });
+    }
+
+    // Agregar imágenes
+    attachments.forEach((attachment) => {
+      if (attachment.contentType?.startsWith("image")) {
+        contentParts.push({
+          type: "image_url",
+          image_url: {
+            url: attachment.url,
+          },
+        });
+      }
+    });
+
+    userContent = contentParts;
+  }
+
   const content = await callGroqAI(model.id, [
     ...simpleMessages,
-    { role: "user", content: userMessage },
+    { role: "user", content: userContent },
   ]);
 
   const { reasoning, text } = extractThinkTags(content);
@@ -101,7 +132,8 @@ async function sendToSingleModel(
 // Modo orquesta: envía a todos los modelos
 async function sendToAllModels(
   messages: ChatMessage[],
-  userMessage: string
+  userMessage: string,
+  attachments: Array<{ url: string; contentType: string }> = []
 ): Promise<ChatMessage[]> {
   const simpleMessages = messages.map((msg) => ({
     role: msg.role,
@@ -109,11 +141,46 @@ async function sendToAllModels(
       msg.parts?.map((p) => (p.type === "text" ? p.text : "")).join("") || "",
   }));
 
-  const promises = groqModels.map(async (model) => {
+  // Si hay imágenes, solo enviar a modelos que soporten vision
+  const modelsToUse =
+    attachments.length > 0
+      ? groqModels.filter((m) => m.supportsVision)
+      : groqModels;
+
+  const promises = modelsToUse.map(async (model) => {
     try {
+      // Preparar el último mensaje del usuario con imágenes si las hay
+      let userContent: string | Array<any> = userMessage;
+
+      if (attachments.length > 0 && model.supportsVision) {
+        const contentParts: Array<any> = [];
+
+        // Agregar texto primero
+        if (userMessage.trim()) {
+          contentParts.push({
+            type: "text",
+            text: userMessage,
+          });
+        }
+
+        // Agregar imágenes
+        attachments.forEach((attachment) => {
+          if (attachment.contentType?.startsWith("image")) {
+            contentParts.push({
+              type: "image_url",
+              image_url: {
+                url: attachment.url,
+              },
+            });
+          }
+        });
+
+        userContent = contentParts;
+      }
+
       const content = await callGroqAI(model.id, [
         ...simpleMessages,
-        { role: "user", content: userMessage },
+        { role: "user", content: userContent },
       ]);
 
       const { reasoning, text } = extractThinkTags(content);
@@ -173,14 +240,17 @@ export function SimpleOrchestratorChat({
   const [selectedGroqModel, setSelectedGroqModel] = useState(groqModels[0]);
   const [sendToAll, setSendToAll] = useState(true);
   const [hasNavigated, setHasNavigated] = useState(initialMessages.length > 0);
+  const [attachments, setAttachments] = useState<Array<{ url: string; name: string; contentType: string }>>([]);
 
   const sendToAllRef = useRef(sendToAll);
   const selectedGroqModelRef = useRef(selectedGroqModel);
+  const attachmentsRef = useRef(attachments);
 
   useEffect(() => {
     sendToAllRef.current = sendToAll;
     selectedGroqModelRef.current = selectedGroqModel;
-  }, [sendToAll, selectedGroqModel]);
+    attachmentsRef.current = attachments;
+  }, [sendToAll, selectedGroqModel, attachments]);
 
   // Guardar chat en BD cuando cambian los mensajes
   useEffect(() => {
@@ -234,26 +304,32 @@ export function SimpleOrchestratorChat({
         fullMessage.parts
           ?.map((p) => (p.type === "text" ? p.text : ""))
           .join("") || "";
-      if (!messageText.trim()) return;
+      if (!messageText.trim() && attachmentsRef.current.length === 0) return;
 
       setMessages((prev) => [...prev, fullMessage]);
       setInput("");
       setLoading(true);
 
+      const currentAttachments = attachmentsRef.current;
+
       try {
         if (sendToAllRef.current) {
-          // Modo orquesta: enviar a todos los modelos
-          const responses = await sendToAllModels(messages, messageText);
+          // Modo orquesta: enviar a todos los modelos (solo vision si hay imágenes)
+          const responses = await sendToAllModels(messages, messageText, currentAttachments);
           setMessages((prev) => [...prev, ...responses]);
         } else {
           // Modo single: enviar solo al modelo seleccionado
           const response = await sendToSingleModel(
             selectedGroqModelRef.current,
             messages,
-            messageText
+            messageText,
+            currentAttachments
           );
           setMessages((prev) => [...prev, response]);
         }
+
+        // Limpiar attachments después de enviar
+        setAttachments([]);
 
         // Actualizar URL sin recargar después del primer mensaje
         if (!hasNavigated) {
@@ -301,7 +377,7 @@ export function SimpleOrchestratorChat({
 
       <div className="sticky bottom-0 z-1 mx-auto flex w-full max-w-4xl gap-2 border-t-0 bg-background px-2 pb-3 md:px-4 md:pb-4">
         <MultimodalInput
-          attachments={[]}
+          attachments={attachments}
           chatId={id}
           groqModels={groqModels}
           input={input}
@@ -312,7 +388,7 @@ export function SimpleOrchestratorChat({
           selectedVisibilityType="private"
           sendMessage={sendMessage}
           sendToAll={sendToAll}
-          setAttachments={() => {}}
+          setAttachments={setAttachments}
           setInput={setInput}
           setMessages={setMessages}
           setSelectedGroqModel={setSelectedGroqModel}

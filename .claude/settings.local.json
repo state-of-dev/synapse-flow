@@ -4,7 +4,9 @@
       "Bash(find:*)",
       "Bash(cat:*)",
       "Bash(npm run:*)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "Bash(cp:*)",
+      "Bash(vercel env pull:*)"
     ],
     "deny": [],
     "ask": []
