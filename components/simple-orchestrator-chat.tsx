@@ -17,7 +17,6 @@ const groqModels = [
   { id: "moonshotai/kimi-k2-instruct-0905", name: "Kimi K2 0905" },
   { id: "qwen/qwen3-32b", name: "Qwen3 32B" },
   { id: "meta-llama/llama-4-maverick-17b-128e-instruct", name: "Llama 4 Maverick" },
-  { id: "meta-llama/llama-4-scout-17b-16e-instruct", name: "Llama 4 Scout" },
 ];
 
 function extractThinkTags(content: string): {
