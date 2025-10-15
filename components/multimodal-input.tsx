@@ -572,11 +572,15 @@ function PureGroqModelSelector({
         disabled={sendToAll}
         type="button"
       >
-        <CpuIcon size={14} className="flex-shrink-0" />
+        <div className="flex-shrink-0">
+          <CpuIcon size={14} />
+        </div>
         <span className="font-medium text-[10px] sm:text-xs truncate max-w-[80px] sm:max-w-none">
           {selectedGroqModel?.name || "Modelo"}
         </span>
-        <ChevronDownIcon size={14} className="flex-shrink-0" />
+        <div className="flex-shrink-0">
+          <ChevronDownIcon size={14} />
+        </div>
       </Trigger>
       <PromptInputModelSelectContent className="min-w-[260px] p-0">
         <div className="flex flex-col gap-px">
