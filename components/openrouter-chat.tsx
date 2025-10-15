@@ -442,22 +442,15 @@ export function OpenRouterChat({
         <MultimodalInput
           attachments={attachments}
           chatId={id}
-          codeMode={codeMode}
           input={input}
           messages={messages}
           onModelChange={() => {}}
-          openRouterModels={availableModels}
           selectedModelId={selectedModel.id}
-          selectedOpenRouterModel={selectedModel}
           selectedVisibilityType="private"
           sendMessage={sendMessage}
-          sendToAll={sendToAll}
           setAttachments={setAttachments}
-          setCodeMode={setCodeMode}
           setInput={setInput}
           setMessages={setMessages}
-          setSelectedOpenRouterModel={setSelectedModel}
-          setSendToAll={setSendToAll}
           status={status}
           stop={() => {}}
           usage={undefined}
