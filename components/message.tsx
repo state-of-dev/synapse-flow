@@ -24,6 +24,7 @@ import { MessageEditor } from "./message-editor";
 import { MessageReasoning } from "./message-reasoning";
 import { PreviewAttachment } from "./preview-attachment";
 import { Weather } from "./weather";
+import { Loader } from "./elements/loader";
 
 const PurePreviewMessage = ({
   chatId,
@@ -308,6 +309,34 @@ export const PreviewMessage = memo(
     return false;
   }
 );
+
+export const LoadingMessage = () => {
+  const role = "assistant";
+  console.log("🔄 LoadingMessage renderizado");
+
+  return (
+    <motion.div
+      animate={{ opacity: 1 }}
+      className="group/message w-full"
+      data-role={role}
+      data-testid="message-assistant-loading"
+      initial={{ opacity: 0 }}
+    >
+      <div className="flex items-start justify-start gap-3">
+        <div className="-mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-background ring-1 ring-border">
+          <SparklesIcon size={14} />
+        </div>
+
+        <div className="flex w-full flex-col gap-2 md:gap-4">
+          <div className="flex items-center gap-2 p-0 text-muted-foreground">
+            <Loader size={20} />
+            <span className="text-sm">Inferring...</span>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
 
 export const ThinkingMessage = () => {
   const role = "assistant";

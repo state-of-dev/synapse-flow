@@ -1,5 +1,11 @@
-docs/
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# IDE and editor settings
+.vscode/
+.claude/
+
+# Documentation (local development)
+docs/
 
 # dependencies
 node_modules
@@ -26,10 +32,11 @@ yarn-error.log*
 
 # local env files
 .env.local
+.env.local.backup
+.env.local.new
 .env.development.local
 .env.test.local
 .env.production.local
-.env.example
 
 # turbo
 .turbo
@@ -43,5 +50,3 @@ yarn-error.log*
 /playwright-report/
 /blob-report/
 /playwright/*
-.env.local.backup
-.env.local.new

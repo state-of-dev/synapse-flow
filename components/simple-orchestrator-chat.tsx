@@ -543,7 +543,7 @@ export function SimpleOrchestratorChat({
     [messages, sendToAll, selectedGroqModel, id, hasNavigated]
   );
 
-  const status = loading ? "streaming" : "ready";
+  const status = loading ? "submitted" : "ready";
 
   return (
     <div className="overscroll-behavior-contain flex h-dvh min-w-0 touch-pan-y flex-col bg-background">
@@ -551,6 +551,7 @@ export function SimpleOrchestratorChat({
         chatId={id}
         isReadonly={false}
         selectedVisibilityType="private"
+        messages={messages}
       />
 
       <Messages
