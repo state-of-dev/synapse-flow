@@ -351,7 +351,7 @@ function PureMultimodalInput({
                         setSendToAll(checked);
                       }}
                     />
-                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">Omnicall</span>
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">Aethra</span>
                   </div>
                 )}
               </>
@@ -543,10 +543,15 @@ function PureGroqModelSelector({
   sendToAll: boolean;
   attachments: Attachment[];
 }) {
-  // Si hay imágenes y NO está en modo orquesta, filtrar solo modelos con vision
-  const availableModels = attachments.length > 0 && !sendToAll
-    ? groqModels.filter((m) => m.supportsVision)
-    : groqModels;
+  // En modo individual (NO Omnicall):
+  // - Con imágenes: SOLO modelos de visión (Llama)
+  // - Sin imágenes: SOLO modelos de texto (sin Llama)
+  // En modo Omnicall: selector deshabilitado, no importa
+  const availableModels = !sendToAll
+    ? attachments.length > 0
+      ? groqModels.filter((m) => m.supportsVision) // Con imágenes: solo Llama
+      : groqModels.filter((m) => !m.supportsVision) // Sin imágenes: sin Llama
+    : groqModels; // Omnicall: todos (pero el selector está deshabilitado)
 
   return (
     <PromptInputModelSelect
@@ -559,7 +564,7 @@ function PureGroqModelSelector({
       value={selectedGroqModel?.name}
     >
       <Trigger
-        className={`flex h-8 items-center gap-2 rounded-lg border-0 bg-background px-2 shadow-none transition-colors focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 ${
+        className={`flex h-8 items-center gap-1 rounded-lg border-0 bg-background px-2 shadow-none transition-colors focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 ${
           sendToAll
             ? 'text-muted-foreground opacity-50 cursor-not-allowed'
             : 'text-foreground hover:bg-accent'
@@ -567,11 +572,11 @@ function PureGroqModelSelector({
         disabled={sendToAll}
         type="button"
       >
-        <CpuIcon size={16} />
-        <span className="hidden font-medium text-xs sm:block">
-          {selectedGroqModel?.name || "Seleccionar modelo"}
+        <CpuIcon size={14} className="flex-shrink-0" />
+        <span className="font-medium text-[10px] sm:text-xs truncate max-w-[80px] sm:max-w-none">
+          {selectedGroqModel?.name || "Modelo"}
         </span>
-        <ChevronDownIcon size={16} />
+        <ChevronDownIcon size={14} className="flex-shrink-0" />
       </Trigger>
       <PromptInputModelSelectContent className="min-w-[260px] p-0">
         <div className="flex flex-col gap-px">

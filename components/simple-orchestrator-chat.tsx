@@ -11,14 +11,34 @@ import { Messages } from "./messages";
 import { MultimodalInput } from "./multimodal-input";
 import { getChatHistoryPaginationKey } from "./sidebar-history";
 
-const groqModels = [
+// Modelos para consultas de texto (usados en modo Omnicall sin imágenes)
+const textModels = [
   { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B", supportsVision: false },
   { id: "groq/compound", name: "Groq Compound", supportsVision: false },
-  { id: "moonshotai/kimi-k2-instruct-0905", name: "Kimi K2 0905", supportsVision: false },
+  {
+    id: "moonshotai/kimi-k2-instruct-0905",
+    name: "Kimi K2 0905",
+    supportsVision: false,
+  },
   { id: "qwen/qwen3-32b", name: "Qwen3 32B", supportsVision: false },
-  { id: "meta-llama/llama-4-maverick-17b-128e-instruct", name: "Llama 4 Maverick", supportsVision: true },
-  { id: "meta-llama/llama-4-scout-17b-16e-instruct", name: "Llama 4 Scout", supportsVision: true },
 ];
+
+// Modelos de visión (solo para imágenes)
+const visionModels = [
+  {
+    id: "meta-llama/llama-4-maverick-17b-128e-instruct",
+    name: "Llama 4 Maverick",
+    supportsVision: true,
+  },
+  {
+    id: "meta-llama/llama-4-scout-17b-16e-instruct",
+    name: "Llama 4 Scout",
+    supportsVision: true,
+  },
+];
+
+// Todos los modelos combinados (para selector individual)
+const groqModels = [...textModels, ...visionModels];
 
 function extractThinkTags(content: string): {
   reasoning: string;
@@ -64,9 +84,39 @@ async function callGroqAI(
   return data.choices[0].message.content;
 }
 
+async function callCerebrasAI(
+  messages: Array<{ role: string; content: string }>
+): Promise<{ content: string; reasoning?: string }> {
+  const response = await fetch("/api/cerebras", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "gpt-oss-120b", // Modelo con soporte para reasoning
+      messages,
+      max_completion_tokens: 65_536, // Máximo de tokens de completación
+      temperature: 1,
+      top_p: 1,
+      reasoning_effort: "high", // Razonamiento profundo y extenso
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+    throw new Error(`Invalid Cerebras response: ${JSON.stringify(data)}`);
+  }
+
+  const message = data.choices[0].message;
+
+  return {
+    content: message.content || "",
+    reasoning: message.reasoning, // Campo separado de reasoning
+  };
+}
+
 // Modo single: envía a un solo modelo
 async function sendToSingleModel(
-  model: typeof groqModels[0],
+  model: (typeof groqModels)[0],
   messages: ChatMessage[],
   userMessage: string,
   attachments: Array<{ url: string; contentType: string }> = []
@@ -141,18 +191,10 @@ async function sendToAllModels(
       msg.parts?.map((p) => (p.type === "text" ? p.text : "")).join("") || "",
   }));
 
-  // Si hay imágenes, solo enviar a modelos que soporten vision
-  const modelsToUse =
-    attachments.length > 0
-      ? groqModels.filter((m) => m.supportsVision)
-      : groqModels;
-
-  const promises = modelsToUse.map(async (model) => {
-    try {
-      // Preparar el último mensaje del usuario con imágenes si las hay
-      let userContent: string | Array<any> = userMessage;
-
-      if (attachments.length > 0 && model.supportsVision) {
+  // Si hay imágenes, usar SOLO modelos de visión (Llama)
+  if (attachments.length > 0) {
+    const promises = visionModels.map(async (model) => {
+      try {
         const contentParts: Array<any> = [];
 
         // Agregar texto primero
@@ -175,54 +217,174 @@ async function sendToAllModels(
           }
         });
 
-        userContent = contentParts;
-      }
+        const content = await callGroqAI(model.id, [
+          ...simpleMessages,
+          { role: "user", content: contentParts },
+        ]);
 
-      const content = await callGroqAI(model.id, [
-        ...simpleMessages,
-        { role: "user", content: userContent },
-      ]);
+        const { reasoning, text } = extractThinkTags(content);
 
-      const { reasoning, text } = extractThinkTags(content);
-
-      const parts: any[] = [];
-      if (reasoning) {
+        const parts: any[] = [];
+        if (reasoning) {
+          parts.push({
+            type: "reasoning",
+            text: `**${model.name} - Razonamiento:**\n${reasoning}`,
+          });
+        }
         parts.push({
-          type: "reasoning",
-          text: `**${model.name} - Razonamiento:**\n${reasoning}`,
+          type: "text" as const,
+          text: `**${model.name}:**\n${text}`,
         });
+
+        return {
+          id: generateUUID(),
+          role: "assistant" as const,
+          parts,
+        };
+      } catch (error) {
+        console.error(`Error with ${model.name}:`, error);
+
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        const isRateLimit =
+          errorMsg.includes("rate_limit") || errorMsg.includes("Rate limit");
+
+        return {
+          id: generateUUID(),
+          role: "assistant" as const,
+          parts: [
+            {
+              type: "text" as const,
+              text: `**${model.name}:**\n${isRateLimit ? "Rate limit alcanzado - intenta de nuevo en unos segundos" : `Error: ${errorMsg}`}`,
+            },
+          ],
+        };
       }
-      parts.push({
-        type: "text" as const,
-        text: `**${model.name}:**\n${text}`,
+    });
+
+    return Promise.all(promises);
+  }
+
+  // Si NO hay imágenes, usar los 4 modelos de texto y generar mega-resumen con Cerebras
+  try {
+    // 1. Enviar a los 4 modelos de texto en paralelo
+    const promises = textModels.map(async (model) => {
+      try {
+        const content = await callGroqAI(model.id, [
+          ...simpleMessages,
+          { role: "user", content: userMessage },
+        ]);
+
+        const { reasoning, text } = extractThinkTags(content);
+
+        const parts: any[] = [];
+        if (reasoning) {
+          parts.push({
+            type: "reasoning",
+            text: `**${model.name} - Razonamiento:**\n${reasoning}`,
+          });
+        }
+        parts.push({
+          type: "text" as const,
+          text: `**${model.name}:**\n${text}`,
+        });
+
+        return {
+          modelName: model.name,
+          response: text,
+          message: {
+            id: generateUUID(),
+            role: "assistant" as const,
+            parts,
+          },
+        };
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        const isRateLimit =
+          errorMsg.includes("rate_limit") || errorMsg.includes("Rate limit");
+
+        return {
+          modelName: model.name,
+          response: `Error: ${errorMsg}`,
+          message: {
+            id: generateUUID(),
+            role: "assistant" as const,
+            parts: [
+              {
+                type: "text" as const,
+                text: `**${model.name}:**\n${isRateLimit ? "Rate limit alcanzado - intenta de nuevo en unos segundos" : `Error: ${errorMsg}`}`,
+              },
+            ],
+          },
+        };
+      }
+    });
+
+    const modelResponses = await Promise.all(promises);
+
+    // 2. Concatenar las respuestas para Cerebras
+    const concatenatedResponses = modelResponses
+      .map(({ modelName, response }) => `### ${modelName}:\n${response}`)
+      .join("\n\n---\n\n");
+
+    // 3. Enviar a Cerebras para generar mega-resumen consolidado con reasoning
+    const cerebrasResponse = await callCerebrasAI([
+      {
+        role: "system",
+        content:
+          "Eres un asistente experto en sintetizar y consolidar información de múltiples fuentes. Tu tarea es:\n\n1. ANALIZAR profundamente cada respuesta proporcionada\n2. IDENTIFICAR patrones, similitudes y diferencias entre las respuestas\n3. INTEGRAR toda la información en un mega-resumen magistral\n4. PROFUNDIZAR en cada punto relevante sin reducir la cobertura\n5. COMBINAR las mejores ideas en una respuesta coherente, completa y exhaustiva\n\nIMPORTANTE: NO reduzcas ni simplifiques en exceso. El resumen debe ser extenso, detallado y abarcar TODOS los puntos mencionados por los modelos.",
+      },
+      {
+        role: "user",
+        content: `Pregunta original del usuario: "${userMessage}"\n\n===== RESPUESTAS DE MÚLTIPLES MODELOS =====\n\n${concatenatedResponses}\n\n===== TU TAREA =====\n\nAnaliza todas las respuestas anteriores y genera un mega-resumen consolidado que:\n- Integre TODA la información proporcionada\n- Profundice en cada punto mencionado\n- Identifique insights únicos de cada modelo\n- Proporcione una respuesta completa, detallada y magistral\n\nUtiliza tu capacidad de reasoning para analizar en profundidad antes de generar la respuesta final.`,
+      },
+    ]);
+
+    // El reasoning viene en campo separado desde la API
+    const megaReasoning = cerebrasResponse.reasoning || "";
+    const megaResumen = cerebrasResponse.content || "";
+
+    // 4. Retornar todas las respuestas individuales + el mega-resumen al final
+    const individualMessages = modelResponses.map(({ message }) => message);
+
+    const megaResumenParts: any[] = [];
+
+    // Agregar reasoning si existe
+    if (megaReasoning) {
+      megaResumenParts.push({
+        type: "reasoning",
+        text: `\n${megaReasoning}`,
       });
+    }
 
-      return {
-        id: generateUUID(),
-        role: "assistant" as const,
-        parts,
-      };
-    } catch (error) {
-      console.error(`Error with ${model.name}:`, error);
+    // Agregar el resumen consolidado
+    megaResumenParts.push({
+      type: "text" as const,
+      text: `**Resumen Consolidado (Cerebras GPT-120 reasoning high):**\n\n${megaResumen}`,
+    });
 
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      const isRateLimit =
-        errorMsg.includes("rate_limit") || errorMsg.includes("Rate limit");
+    const megaResumenMessage = {
+      id: generateUUID(),
+      role: "assistant" as const,
+      parts: megaResumenParts,
+    };
 
-      return {
+    return [...individualMessages, megaResumenMessage];
+  } catch (error) {
+    console.error("Error en modo orquesta con mega-resumen:", error);
+
+    return [
+      {
         id: generateUUID(),
         role: "assistant" as const,
         parts: [
           {
             type: "text" as const,
-            text: `**${model.name}:**\n${isRateLimit ? "Rate limit alcanzado - intenta de nuevo en unos segundos" : `Error: ${errorMsg}`}`,
+            text: `Error al generar mega-resumen: ${error instanceof Error ? error.message : String(error)}`,
           },
         ],
-      };
-    }
-  });
-
-  return Promise.all(promises);
+      },
+    ];
+  }
 }
 
 export function SimpleOrchestratorChat({
@@ -240,7 +402,9 @@ export function SimpleOrchestratorChat({
   const [selectedGroqModel, setSelectedGroqModel] = useState(groqModels[0]);
   const [sendToAll, setSendToAll] = useState(true);
   const [hasNavigated, setHasNavigated] = useState(initialMessages.length > 0);
-  const [attachments, setAttachments] = useState<Array<{ url: string; name: string; contentType: string }>>([]);
+  const [attachments, setAttachments] = useState<
+    Array<{ url: string; name: string; contentType: string }>
+  >([]);
 
   const sendToAllRef = useRef(sendToAll);
   const selectedGroqModelRef = useRef(selectedGroqModel);
@@ -252,12 +416,21 @@ export function SimpleOrchestratorChat({
     attachmentsRef.current = attachments;
   }, [sendToAll, selectedGroqModel, attachments]);
 
+  // Sincronizar mensajes cuando cambie el ID o initialMessages
+  useEffect(() => {
+    if (initialMessages.length > 0) {
+      setMessages(initialMessages);
+    }
+  }, [id, initialMessages]);
+
   // Cambiar automáticamente a Llama 4 Maverick cuando se sube una imagen en modo individual
   useEffect(() => {
     if (attachments.length > 0 && !sendToAll) {
       // Si el modelo actual no soporta vision, cambiar a Maverick
       if (!selectedGroqModel.supportsVision) {
-        const maverickModel = groqModels.find(m => m.id === "meta-llama/llama-4-maverick-17b-128e-instruct");
+        const maverickModel = groqModels.find(
+          (m) => m.id === "meta-llama/llama-4-maverick-17b-128e-instruct"
+        );
         if (maverickModel) {
           setSelectedGroqModel(maverickModel);
         }
@@ -328,7 +501,11 @@ export function SimpleOrchestratorChat({
       try {
         if (sendToAllRef.current) {
           // Modo orquesta: enviar a todos los modelos (solo vision si hay imágenes)
-          const responses = await sendToAllModels(messages, messageText, currentAttachments);
+          const responses = await sendToAllModels(
+            messages,
+            messageText,
+            currentAttachments
+          );
           setMessages((prev) => [...prev, ...responses]);
         } else {
           // Modo single: enviar solo al modelo seleccionado
