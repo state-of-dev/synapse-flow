@@ -558,24 +558,15 @@ export function UnifiedChat({
         <MultimodalInput
           attachments={attachments}
           chatId={id}
-          codeMode={codeMode}
-          godMode={godMode}
           input={input}
           messages={messages}
           onModelChange={() => {}}
-          unifiedModels={availableModels}
           selectedModelId={selectedModel.id}
-          selectedUnifiedModel={selectedModel}
           selectedVisibilityType="private"
           sendMessage={sendMessage}
-          sendToAll={sendToAll}
           setAttachments={setAttachments}
-          setCodeMode={setCodeMode}
-          setGodMode={setGodMode}
           setInput={setInput}
           setMessages={setMessages}
-          setSelectedUnifiedModel={setSelectedModel}
-          setSendToAll={setSendToAll}
           status={status}
           stop={() => {}}
           usage={undefined}
