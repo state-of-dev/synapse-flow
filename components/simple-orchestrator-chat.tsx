@@ -400,7 +400,7 @@ export function SimpleOrchestratorChat({
   const [input, setInput] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [selectedGroqModel, setSelectedGroqModel] = useState(groqModels[0]);
-  const [sendToAll, setSendToAll] = useState(true);
+  const [sendToAll, setSendToAll] = useState(false);
   const [hasNavigated, setHasNavigated] = useState(initialMessages.length > 0);
   const [attachments, setAttachments] = useState<
     Array<{ url: string; name: string; contentType: string }>

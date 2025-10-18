@@ -263,7 +263,7 @@ export function OpenRouterChat({
   const [selectedModel, setSelectedModel] = useState<OpenRouterModel>(
     allOpenRouterModels[0]
   );
-  const [sendToAll, setSendToAll] = useState(true);
+  const [sendToAll, setSendToAll] = useState(false);
   const [codeMode, setCodeMode] = useState(false);
   const [hasNavigated, setHasNavigated] = useState(initialMessages.length > 0);
   const [attachments, setAttachments] = useState<
