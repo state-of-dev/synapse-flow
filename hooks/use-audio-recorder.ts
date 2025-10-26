@@ -7,16 +7,42 @@ export function useAudioRecorder() {
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const mimeTypeRef = useRef<string>('audio/webm');
 
   const startRecording = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Verificar permisos primero
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        toast.error('Tu navegador no soporta grabación de audio');
+        return;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 44100,
+        }
+      });
+
+      // Detectar el mejor formato soportado por el navegador
+      let mimeType = 'audio/webm';
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        mimeType = 'audio/webm;codecs=opus';
+      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        mimeType = 'audio/mp4';
+      } else if (MediaRecorder.isTypeSupported('audio/aac')) {
+        mimeType = 'audio/aac';
+      } else if (MediaRecorder.isTypeSupported('audio/mpeg')) {
+        mimeType = 'audio/mpeg';
+      }
 
       const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm',
+        mimeType: mimeType,
       });
 
       chunksRef.current = [];
+      mimeTypeRef.current = mimeType; // Guardar el mimeType usado
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
@@ -27,9 +53,18 @@ export function useAudioRecorder() {
       mediaRecorder.start();
       mediaRecorderRef.current = mediaRecorder;
       setRecordingState('recording');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al iniciar grabación:', error);
-      toast.error('No se pudo acceder al micrófono');
+
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        toast.error('Permiso de micrófono denegado. Por favor, habilítalo en la configuración de tu navegador.');
+      } else if (error.name === 'NotFoundError') {
+        toast.error('No se encontró ningún micrófono en tu dispositivo.');
+      } else if (error.name === 'NotReadableError') {
+        toast.error('El micrófono ya está siendo usado por otra aplicación.');
+      } else {
+        toast.error('No se pudo acceder al micrófono. Intenta recargar la página.');
+      }
     }
   }, []);
 
@@ -43,7 +78,7 @@ export function useAudioRecorder() {
       }
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        const audioBlob = new Blob(chunksRef.current, { type: mimeTypeRef.current });
 
         // Detener todos los tracks
         mediaRecorder.stream.getTracks().forEach(track => track.stop());
@@ -64,7 +99,18 @@ export function useAudioRecorder() {
 
     try {
       const formData = new FormData();
-      formData.append('file', audioBlob, 'audio.webm');
+
+      // Determinar extensión de archivo basada en el tipo MIME
+      let filename = 'audio.webm';
+      if (audioBlob.type.includes('mp4')) {
+        filename = 'audio.mp4';
+      } else if (audioBlob.type.includes('aac')) {
+        filename = 'audio.aac';
+      } else if (audioBlob.type.includes('mpeg')) {
+        filename = 'audio.mp3';
+      }
+
+      formData.append('file', audioBlob, filename);
 
       const response = await fetch('/api/groq/transcribe', {
         method: 'POST',
