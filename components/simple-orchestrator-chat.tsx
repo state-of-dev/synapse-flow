@@ -194,7 +194,7 @@ async function sendToSingleModel(
   messages: ChatMessage[],
   userMessage: string,
   attachments: Array<{ url: string; contentType: string }> = []
-): Promise<ChatMessage> {
+): Promise<ChatMessage | ChatMessage[]> {
   const simpleMessages = messages.map((msg) => ({
     role: msg.role,
     content:
@@ -237,19 +237,56 @@ async function sendToSingleModel(
   let modelName = model.name;
 
   if (useCompound && attachments.length > 0 && model.supportsVision) {
-    // FLUJO MULTIMODAL + WEB SEARCH (2 pasos en 1 click)
+    // FLUJO MULTIMODAL + WEB SEARCH - Retorna 2 mensajes separados
+
     // Paso 1: Analizar imagen con modelo de visión
     const visionAnalysis = await callGroqAI(model.id, [
       ...simpleMessages,
       { role: "user", content: userContent },
     ]);
 
-    // Paso 2: Usar el análisis de la imagen para buscar en internet
-    const searchPrompt = `Basándome en esta descripción de una imagen: "${visionAnalysis}"\n\nY considerando la pregunta del usuario: "${userMessage}"\n\nBusca información actualizada y relevante en internet.`;
+    const { reasoning: visionReasoning, text: visionText } = extractThinkTags(visionAnalysis);
 
-    content = await callGroqCompound([{ role: "user", content: searchPrompt }]);
+    const visionParts: any[] = [];
+    if (visionReasoning) {
+      visionParts.push({ type: "reasoning", text: visionReasoning });
+    }
+    visionParts.push({
+      type: "text",
+      text: `**${model.name} (Vision Analysis):**\n${visionText}`,
+    });
 
-    modelName = "Vision + Web Search";
+    // Paso 2: Usar el análisis para buscar en internet
+    const searchPrompt = `Basándome en esta descripción de una imagen: "${visionText}"\n\nY considerando la pregunta del usuario: "${userMessage}"\n\nBusca información actualizada y relevante en internet.`;
+
+    const webSearchContent = await callGroqCompound([
+      { role: "user", content: searchPrompt },
+    ]);
+
+    const { reasoning: webReasoning, text: webText } = extractThinkTags(webSearchContent);
+
+    const webSearchParts: any[] = [];
+    if (webReasoning) {
+      webSearchParts.push({ type: "reasoning", text: webReasoning });
+    }
+    webSearchParts.push({
+      type: "text",
+      text: `**Groq Compound (Web Search):**\n${webText}`,
+    });
+
+    // Retornar AMBOS mensajes como array
+    return [
+      {
+        id: generateUUID(),
+        role: "assistant",
+        parts: visionParts,
+      },
+      {
+        id: generateUUID(),
+        role: "assistant",
+        parts: webSearchParts,
+      },
+    ];
   } else if (useCompound && attachments.length === 0) {
     // Usar Groq Compound con web search (solo texto, sin imágenes)
     content = await callGroqCompound([
@@ -295,77 +332,227 @@ async function sendToAllModels(
       msg.parts?.map((p) => (p.type === "text" ? p.text : "")).join("") || "",
   }));
 
-  // Si hay imágenes, usar SOLO modelos de visión (Llama)
+  // Si hay imágenes, usar FLUJO DE 3 PASOS si hay keywords, sino solo modelos de visión
   if (attachments.length > 0) {
-    const promises = visionModels.map(async (model) => {
-      try {
-        const contentParts: Array<any> = [];
+    const useCompound = needsWebSearch(userMessage);
 
-        // Agregar texto primero
-        if (userMessage.trim()) {
-          contentParts.push({
-            type: "text",
-            text: userMessage,
-          });
-        }
+    if (useCompound) {
+      // FLUJO DE 3 PASOS: Vision → Web Search → Cerebras
+      const allMessages: ChatMessage[] = [];
 
-        // Agregar imágenes
-        attachments.forEach((attachment) => {
-          if (attachment.contentType?.startsWith("image")) {
+      // PASO 1: Todos los modelos de visión analizan la imagen
+      const visionPromises = visionModels.map(async (model) => {
+        try {
+          const contentParts: Array<any> = [];
+
+          if (userMessage.trim()) {
             contentParts.push({
-              type: "image_url",
-              image_url: {
-                url: attachment.url,
-              },
+              type: "text",
+              text: userMessage,
             });
           }
-        });
 
-        const content = await callGroqAI(model.id, [
-          ...simpleMessages,
-          { role: "user", content: contentParts },
-        ]);
-
-        const { reasoning, text } = extractThinkTags(content);
-
-        const parts: any[] = [];
-        if (reasoning) {
-          parts.push({
-            type: "reasoning",
-            text: `**${model.name} - Razonamiento:**\n${reasoning}`,
+          attachments.forEach((attachment) => {
+            if (attachment.contentType?.startsWith("image")) {
+              contentParts.push({
+                type: "image_url",
+                image_url: {
+                  url: attachment.url,
+                },
+              });
+            }
           });
-        }
-        parts.push({
-          type: "text" as const,
-          text: `**${model.name}:**\n${text}`,
-        });
 
-        return {
-          id: generateUUID(),
-          role: "assistant" as const,
-          parts,
-        };
-      } catch (error) {
-        console.error(`Error with ${model.name}:`, error);
+          const content = await callGroqAI(model.id, [
+            ...simpleMessages,
+            { role: "user", content: contentParts },
+          ]);
 
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        const isRateLimit =
-          errorMsg.includes("rate_limit") || errorMsg.includes("Rate limit");
+          const { reasoning, text } = extractThinkTags(content);
 
-        return {
-          id: generateUUID(),
-          role: "assistant" as const,
-          parts: [
-            {
-              type: "text" as const,
-              text: `**${model.name}:**\n${isRateLimit ? "Rate limit alcanzado - intenta de nuevo en unos segundos" : `Error: ${errorMsg}`}`,
+          const parts: any[] = [];
+          if (reasoning) {
+            parts.push({
+              type: "reasoning",
+              text: `**${model.name} - Razonamiento:**\n${reasoning}`,
+            });
+          }
+          parts.push({
+            type: "text" as const,
+            text: `**${model.name} (Vision):**\n${text}`,
+          });
+
+          return {
+            modelName: model.name,
+            visionText: text,
+            message: {
+              id: generateUUID(),
+              role: "assistant" as const,
+              parts,
             },
-          ],
-        };
-      }
-    });
+          };
+        } catch (error) {
+          console.error(`Error with ${model.name}:`, error);
+          return null;
+        }
+      });
 
-    return Promise.all(promises);
+      const visionResults = (await Promise.all(visionPromises)).filter((r) => r !== null);
+
+      // Agregar mensajes de visión
+      visionResults.forEach((result) => {
+        if (result) allMessages.push(result.message);
+      });
+
+      // PASO 2: Concatenar análisis de visión + enviar a todos los modelos de texto con web search
+      const concatenatedVision = visionResults
+        .map((r) => `${r!.modelName}: ${r!.visionText}`)
+        .join("\n\n");
+
+      const webSearchPrompt = `Análisis de imagen por múltiples modelos:\n\n${concatenatedVision}\n\nPregunta del usuario: "${userMessage}"\n\nBusca información actualizada y relevante en internet sobre esto.`;
+
+      const webSearchPromises = textModels.map(async (model) => {
+        try {
+          const content = await callGroqCompound([
+            { role: "user", content: webSearchPrompt },
+          ]);
+
+          const { reasoning, text } = extractThinkTags(content);
+
+          const parts: any[] = [];
+          if (reasoning) {
+            parts.push({
+              type: "reasoning",
+              text: `**${model.name} - Razonamiento:**\n${reasoning}`,
+            });
+          }
+          parts.push({
+            type: "text" as const,
+            text: `**${model.name} (Web Search):**\n${text}`,
+          });
+
+          return {
+            modelName: model.name,
+            response: text,
+            message: {
+              id: generateUUID(),
+              role: "assistant" as const,
+              parts,
+            },
+          };
+        } catch (error) {
+          console.error(`Error with ${model.name}:`, error);
+          return null;
+        }
+      });
+
+      const webSearchResults = (await Promise.all(webSearchPromises)).filter((r) => r !== null);
+
+      // Agregar mensajes de web search
+      webSearchResults.forEach((result) => {
+        if (result) allMessages.push(result.message);
+      });
+
+      // PASO 3: Concatenar todas las respuestas con web search + enviar a Cerebras
+      const allResponses = webSearchResults
+        .map((r) => `${r!.modelName}:\n${r!.response}`)
+        .join("\n\n---\n\n");
+
+      const megaPrompt = `Pregunta original del usuario: "${userMessage}"\n\nAnálisis de imagen:\n${concatenatedVision}\n\nRespuestas con búsqueda web:\n\n${allResponses}\n\nGenera un mega-resumen consolidado y completo.`;
+
+      const cerebrasResult = await callCerebrasAI([
+        { role: "user", content: megaPrompt },
+      ]);
+
+      const megaParts: any[] = [];
+      if (cerebrasResult.reasoning) {
+        megaParts.push({
+          type: "reasoning",
+          text: `**Mega-Resumen - Razonamiento:**\n${cerebrasResult.reasoning}`,
+        });
+      }
+      megaParts.push({
+        type: "text" as const,
+        text: `**🧠 Mega-Resumen (Cerebras):**\n${cerebrasResult.content}`,
+      });
+
+      allMessages.push({
+        id: generateUUID(),
+        role: "assistant" as const,
+        parts: megaParts,
+      });
+
+      return allMessages;
+    } else {
+      // Sin keywords: Solo modelos de visión (flujo normal)
+      const promises = visionModels.map(async (model) => {
+        try {
+          const contentParts: Array<any> = [];
+
+          if (userMessage.trim()) {
+            contentParts.push({
+              type: "text",
+              text: userMessage,
+            });
+          }
+
+          attachments.forEach((attachment) => {
+            if (attachment.contentType?.startsWith("image")) {
+              contentParts.push({
+                type: "image_url",
+                image_url: {
+                  url: attachment.url,
+                },
+              });
+            }
+          });
+
+          const content = await callGroqAI(model.id, [
+            ...simpleMessages,
+            { role: "user", content: contentParts },
+          ]);
+
+          const { reasoning, text } = extractThinkTags(content);
+
+          const parts: any[] = [];
+          if (reasoning) {
+            parts.push({
+              type: "reasoning",
+              text: `**${model.name} - Razonamiento:**\n${reasoning}`,
+            });
+          }
+          parts.push({
+            type: "text" as const,
+            text: `**${model.name}:**\n${text}`,
+          });
+
+          return {
+            id: generateUUID(),
+            role: "assistant" as const,
+            parts,
+          };
+        } catch (error) {
+          console.error(`Error with ${model.name}:`, error);
+
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          const isRateLimit =
+            errorMsg.includes("rate_limit") || errorMsg.includes("Rate limit");
+
+          return {
+            id: generateUUID(),
+            role: "assistant" as const,
+            parts: [
+              {
+                type: "text" as const,
+                text: `**${model.name}:**\n${isRateLimit ? "Rate limit alcanzado - intenta de nuevo en unos segundos" : `Error: ${errorMsg}`}`,
+              },
+            ],
+          };
+        }
+      });
+
+      return Promise.all(promises);
+    }
   }
 
   // Si NO hay imágenes, usar los 4 modelos de texto y generar mega-resumen con Cerebras
@@ -619,7 +806,8 @@ export function SimpleOrchestratorChat({
             messageText,
             currentAttachments
           );
-          setMessages((prev) => [...prev, response]);
+          // response puede ser un solo mensaje o un array de mensajes
+          setMessages((prev) => [...prev, ...(Array.isArray(response) ? response : [response])]);
         }
 
         // Limpiar attachments después de enviar
