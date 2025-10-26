@@ -84,6 +84,80 @@ async function callGroqAI(
   return data.choices[0].message.content;
 }
 
+// Detecta si el mensaje requiere búsqueda web
+function needsWebSearch(message: string): boolean {
+  const keywords = [
+    "busca",
+    "buscar",
+    "búsqueda",
+    "investiga",
+    "investigar",
+    "investigación",
+    "encuentra",
+    "encontrar",
+    "últimas noticias",
+    "noticias recientes",
+    "información actualizada",
+    "datos recientes",
+    "qué pasó",
+    "qué está pasando",
+    "tendencias",
+    "trending",
+    "actual",
+    "ahora",
+    "hoy",
+    "ayer",
+    "search",
+    "find",
+    "look up",
+    "research",
+    "latest",
+    "recent",
+    "current",
+    "visita",
+    "abre",
+    "ir a",
+    "navega",
+    "página web",
+    "sitio web",
+    "en internet",
+    "en la web",
+    "online",
+  ];
+
+  const lowerMessage = message.toLowerCase();
+  return keywords.some((keyword) => lowerMessage.includes(keyword));
+}
+
+// Llama a Groq Compound con herramientas integradas
+async function callGroqCompound(
+  messages: Array<{ role: string; content: string | Array<any> }>,
+  tools: string[] = ["web_search", "visit_website"]
+): Promise<string> {
+  const cleanMessages = messages.map(({ role, content }) => ({
+    role,
+    content,
+  }));
+
+  const response = await fetch("/api/groq/compound", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "groq/compound",
+      messages: cleanMessages,
+      tools,
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+    throw new Error(`Invalid Compound response: ${JSON.stringify(data)}`);
+  }
+
+  return data.choices[0].message.content;
+}
+
 async function callCerebrasAI(
   messages: Array<{ role: string; content: string }>
 ): Promise<{ content: string; reasoning?: string }> {
@@ -156,10 +230,40 @@ async function sendToSingleModel(
     userContent = contentParts;
   }
 
-  const content = await callGroqAI(model.id, [
-    ...simpleMessages,
-    { role: "user", content: userContent },
-  ]);
+  // Detectar si necesita búsqueda web
+  const useCompound = needsWebSearch(userMessage);
+
+  let content: string;
+  let modelName = model.name;
+
+  if (useCompound && attachments.length > 0 && model.supportsVision) {
+    // FLUJO MULTIMODAL + WEB SEARCH (2 pasos en 1 click)
+    // Paso 1: Analizar imagen con modelo de visión
+    const visionAnalysis = await callGroqAI(model.id, [
+      ...simpleMessages,
+      { role: "user", content: userContent },
+    ]);
+
+    // Paso 2: Usar el análisis de la imagen para buscar en internet
+    const searchPrompt = `Basándome en esta descripción de una imagen: "${visionAnalysis}"\n\nY considerando la pregunta del usuario: "${userMessage}"\n\nBusca información actualizada y relevante en internet.`;
+
+    content = await callGroqCompound([{ role: "user", content: searchPrompt }]);
+
+    modelName = "Vision + Web Search";
+  } else if (useCompound && attachments.length === 0) {
+    // Usar Groq Compound con web search (solo texto, sin imágenes)
+    content = await callGroqCompound([
+      ...simpleMessages,
+      { role: "user", content: userMessage },
+    ]);
+    modelName = "Groq Compound (Web Search)";
+  } else {
+    // Usar modelo normal (con o sin imágenes)
+    content = await callGroqAI(model.id, [
+      ...simpleMessages,
+      { role: "user", content: userContent },
+    ]);
+  }
 
   const { reasoning, text } = extractThinkTags(content);
 
@@ -169,7 +273,7 @@ async function sendToSingleModel(
   }
   parts.push({
     type: "text",
-    text: `**${model.name}:**\n${text}`,
+    text: `**${modelName}:**\n${text}`,
   });
 
   return {
@@ -550,8 +654,8 @@ export function SimpleOrchestratorChat({
       <ChatHeader
         chatId={id}
         isReadonly={false}
-        selectedVisibilityType="private"
         messages={messages}
+        selectedVisibilityType="private"
       />
 
       <Messages
