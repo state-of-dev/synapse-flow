@@ -40,6 +40,7 @@ import {
   ArrowUpIcon,
   ChevronDownIcon,
   CpuIcon,
+  MicrophoneIcon,
   PaperclipIcon,
   StopIcon,
 } from "./icons";
@@ -47,6 +48,7 @@ import { PreviewAttachment } from "./preview-attachment";
 // import { SuggestedActions } from "./suggested-actions";
 import { Button } from "./ui/button";
 import type { VisibilityType } from "./visibility-selector";
+import { useAudioRecorder } from "@/hooks/use-audio-recorder";
 
 function PureMultimodalInput({
   chatId,
@@ -93,6 +95,15 @@ function PureMultimodalInput({
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
+  const {
+    recordingState,
+    startRecording,
+    stopRecording,
+    transcribeAudio,
+    cancelRecording,
+    isRecording,
+    isTranscribing,
+  } = useAudioRecorder();
 
   const adjustHeight = useCallback(() => {
     if (textareaRef.current) {
@@ -247,6 +258,29 @@ function PureMultimodalInput({
     [setAttachments, uploadFile]
   );
 
+  const handleMicrophoneClick = useCallback(async () => {
+    if (isRecording) {
+      // Detener grabación y transcribir
+      try {
+        const audioBlob = await stopRecording();
+        const transcription = await transcribeAudio(audioBlob);
+
+        // Insertar texto en el input (sin auto-submit)
+        setInput(transcription);
+
+        // Enfocar el textarea
+        if (width && width > 768) {
+          textareaRef.current?.focus();
+        }
+      } catch (error) {
+        console.error('Error al transcribir:', error);
+      }
+    } else {
+      // Iniciar grabación
+      startRecording();
+    }
+  }, [isRecording, stopRecording, transcribeAudio, setInput, startRecording, width]);
+
   return (
     <div className={cn("relative flex w-full flex-col gap-4", className)}>
       {/* {messages.length === 0 &&
@@ -363,17 +397,25 @@ function PureMultimodalInput({
             )}
           </PromptInputTools>
 
-          {status === "submitted" ? (
-            <StopButton setMessages={setMessages} stop={stop} />
-          ) : (
-            <PromptInputSubmit
-              className="size-8 rounded-full bg-primary text-primary-foreground transition-colors duration-200 hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground"
-              disabled={!input.trim() || uploadQueue.length > 0}
+          <div className="flex items-center gap-1">
+            <MicrophoneButton
+              isRecording={isRecording}
+              isTranscribing={isTranscribing}
+              onClick={handleMicrophoneClick}
               status={status}
-            >
-              <ArrowUpIcon size={14} />
-            </PromptInputSubmit>
-          )}
+            />
+            {status === "submitted" ? (
+              <StopButton setMessages={setMessages} stop={stop} />
+            ) : (
+              <PromptInputSubmit
+                className="size-8 rounded-full bg-primary text-primary-foreground transition-colors duration-200 hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground"
+                disabled={!input.trim() || uploadQueue.length > 0}
+                status={status}
+              >
+                <ArrowUpIcon size={14} />
+              </PromptInputSubmit>
+            )}
+          </div>
         </PromptInputToolbar>
       </PromptInput>
     </div>
@@ -599,3 +641,45 @@ function PureGroqModelSelector({
 }
 
 const GroqModelSelector = memo(PureGroqModelSelector);
+
+function PureMicrophoneButton({
+  isRecording,
+  isTranscribing,
+  onClick,
+  status,
+}: {
+  isRecording: boolean;
+  isTranscribing: boolean;
+  onClick: () => void;
+  status: UseChatHelpers<ChatMessage>["status"];
+}) {
+  const isDisabled = status !== "ready" && !isRecording;
+
+  return (
+    <Button
+      className={`size-8 rounded-full transition-colors duration-200 ${
+        isRecording
+          ? 'bg-red-500 text-white hover:bg-red-600 animate-pulse'
+          : isTranscribing
+          ? 'bg-muted text-muted-foreground cursor-wait'
+          : isDisabled
+          ? 'bg-muted text-muted-foreground cursor-not-allowed'
+          : 'bg-muted text-muted-foreground hover:bg-muted/80'
+      }`}
+      data-testid="microphone-button"
+      disabled={isDisabled && !isRecording}
+      onClick={(event) => {
+        event.preventDefault();
+        if (!isDisabled || isRecording) {
+          onClick();
+        }
+      }}
+      type="button"
+      variant="ghost"
+    >
+      <MicrophoneIcon size={14} />
+    </Button>
+  );
+}
+
+const MicrophoneButton = memo(PureMicrophoneButton);

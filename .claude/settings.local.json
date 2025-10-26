@@ -6,7 +6,9 @@
       "Bash(npm run:*)",
       "Bash(npx tsx:*)",
       "Bash(cp:*)",
-      "Bash(vercel env pull:*)"
+      "Bash(vercel env pull:*)",
+      "WebSearch",
+      "WebFetch(domain:console.groq.com)"
     ],
     "deny": [],
     "ask": []
