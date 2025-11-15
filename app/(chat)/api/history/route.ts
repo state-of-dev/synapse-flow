@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { getAllChats } from "@/lib/db/queries";
+import { getAllChats, deleteAllChats } from "@/lib/db/queries";
 import { ChatSDKError } from "@/lib/errors";
 
 export async function GET(request: NextRequest) {
@@ -24,4 +24,19 @@ export async function GET(request: NextRequest) {
   });
 
   return Response.json(chats);
+}
+
+export async function DELETE() {
+  try {
+    await deleteAllChats();
+    return new Response(null, { status: 204 });
+  } catch (error) {
+    if (error instanceof ChatSDKError) {
+      return error.toResponse();
+    }
+    return new ChatSDKError(
+      "bad_request:api",
+      "Failed to delete all chats"
+    ).toResponse();
+  }
 }

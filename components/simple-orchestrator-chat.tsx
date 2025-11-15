@@ -13,13 +13,9 @@ import { getChatHistoryPaginationKey } from "./sidebar-history";
 
 // Modelos para consultas de texto (usados en modo Omnicall sin imágenes)
 const textModels = [
+  { id: "moonshotai/kimi-k2-instruct-0905", name: "Kimi K2", supportsVision: false },
   { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B", supportsVision: false },
   { id: "groq/compound", name: "Groq Compound", supportsVision: false },
-  {
-    id: "moonshotai/kimi-k2-instruct-0905",
-    name: "Kimi K2 0905",
-    supportsVision: false,
-  },
   { id: "qwen/qwen3-32b", name: "Qwen3 32B", supportsVision: false },
 ];
 
@@ -851,7 +847,7 @@ export function SimpleOrchestratorChat({
         isArtifactVisible={false}
         isReadonly={false}
         messages={messages}
-        regenerate={async () => {}}
+        regenerate={async () => { }}
         selectedModelId={selectedGroqModel.id}
         setMessages={setMessages}
         status={status}
@@ -865,7 +861,7 @@ export function SimpleOrchestratorChat({
           groqModels={groqModels}
           input={input}
           messages={messages}
-          onModelChange={() => {}}
+          onModelChange={() => { }}
           selectedGroqModel={selectedGroqModel}
           selectedModelId={selectedGroqModel.id}
           selectedVisibilityType="private"
@@ -877,7 +873,7 @@ export function SimpleOrchestratorChat({
           setSelectedGroqModel={setSelectedGroqModel}
           setSendToAll={setSendToAll}
           status={status}
-          stop={() => {}}
+          stop={() => { }}
           usage={undefined}
         />
       </div>

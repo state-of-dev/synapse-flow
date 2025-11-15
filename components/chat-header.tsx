@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import { useWindowSize } from "usehooks-ts";
 import { toast } from "sonner";
 import { useCopyToClipboard } from "usehooks-ts";
@@ -27,6 +27,12 @@ function PureChatHeader({
   const router = useRouter();
   const { open } = useSidebar();
   const [_, copyToClipboard] = useCopyToClipboard();
+  const { width: windowWidth } = useWindowSize();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleCopyConversation = async () => {
     if (!messages || messages.length === 0) {
@@ -53,22 +59,19 @@ function PureChatHeader({
     <header className="sticky top-0 flex items-center gap-2 bg-background px-2 py-1.5 md:px-2">
       <SidebarToggle />
 
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            className="order-2 ml-auto h-8 px-2 md:order-1 md:ml-0 md:h-fit md:px-2 md:hidden"
-            onClick={() => {
-              router.push("/");
-              router.refresh();
-            }}
-            variant="outline"
-          >
-            <PlusIcon />
-            <span className="sr-only">Nuevo Chat</span>
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>Nuevo Chat</TooltipContent>
-      </Tooltip>
+      {isMounted && (!open || windowWidth < 768) && (
+        <Button
+          className="h-8 px-2 md:h-fit md:px-2"
+          onClick={() => {
+            router.push("/");
+            router.refresh();
+          }}
+          variant="outline"
+        >
+          <PlusIcon />
+          <span className="sr-only">Nuevo Chat</span>
+        </Button>
+      )}
 
       <Tooltip>
         <TooltipTrigger asChild>

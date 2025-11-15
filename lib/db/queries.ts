@@ -129,6 +129,24 @@ export async function deleteChatById({ id }: { id: string }) {
   }
 }
 
+export async function deleteAllChats() {
+  try {
+    // Eliminar todos los votos
+    await db.delete(vote);
+    // Eliminar todos los mensajes
+    await db.delete(message);
+    // Eliminar todos los streams
+    await db.delete(stream);
+    // Eliminar todos los chats
+    await db.delete(chat);
+  } catch (_error) {
+    throw new ChatSDKError(
+      "bad_request:database",
+      "Failed to delete all chats"
+    );
+  }
+}
+
 export async function getAllChats({
   limit,
   startingAfter,

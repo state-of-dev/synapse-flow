@@ -28,7 +28,7 @@ export function SidebarToggle({
         </Button>
       </TooltipTrigger>
       <TooltipContent align="start" className="hidden md:block">
-        Mostrar/ocultar barra lateral
+        Mostrar/ocultar sidebar
       </TooltipContent>
     </Tooltip>
   );
