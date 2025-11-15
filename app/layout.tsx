@@ -8,7 +8,7 @@ import { SessionProvider } from "next-auth/react";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://chat.vercel.ai"),
-  title: "OneShot Synapse",
+  title: "OneShot Context",
   description: "A playground for exploring multiple LLM models",
   icons: {
     icon: "/favicon.ico",
