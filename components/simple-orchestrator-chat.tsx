@@ -686,8 +686,30 @@ export function SimpleOrchestratorChat({
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [input, setInput] = useState<string>("");
   const [loading, setLoading] = useState(false);
-  const [selectedGroqModel, setSelectedGroqModel] = useState(groqModels[0]);
-  const [sendToAll, setSendToAll] = useState(false);
+
+  // Inicializar selectedGroqModel desde localStorage o usar default
+  const [selectedGroqModel, setSelectedGroqModel] = useState<(typeof groqModels)[0]>(() => {
+    if (typeof window !== 'undefined') {
+      const savedModelId = localStorage.getItem('selectedGroqModelId');
+      if (savedModelId) {
+        const savedModel = groqModels.find(m => m.id === savedModelId);
+        if (savedModel) return savedModel;
+      }
+    }
+    return groqModels[0];
+  });
+
+  // Inicializar sendToAll desde localStorage o usar default
+  const [sendToAll, setSendToAll] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const savedSendToAll = localStorage.getItem('sendToAll');
+      if (savedSendToAll !== null) {
+        return savedSendToAll === 'true';
+      }
+    }
+    return false;
+  });
+
   const [hasNavigated, setHasNavigated] = useState(initialMessages.length > 0);
   const [attachments, setAttachments] = useState<
     Array<{ url: string; name: string; contentType: string }>
