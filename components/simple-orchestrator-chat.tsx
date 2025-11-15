@@ -13,9 +13,9 @@ import { getChatHistoryPaginationKey } from "./sidebar-history";
 
 // Modelos para consultas de texto (usados en modo Omnicall sin imágenes)
 const textModels = [
-  { id: "moonshotai/kimi-k2-instruct-0905", name: "Kimi K2", supportsVision: false },
   { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B", supportsVision: false },
   { id: "groq/compound", name: "Groq Compound", supportsVision: false },
+  { id: "moonshotai/kimi-k2-instruct-0905", name: "Kimi K2", supportsVision: false },
   { id: "qwen/qwen3-32b", name: "Qwen3 32B", supportsVision: false },
 ];
 
