@@ -725,6 +725,20 @@ export function SimpleOrchestratorChat({
     attachmentsRef.current = attachments;
   }, [sendToAll, selectedGroqModel, attachments]);
 
+  // Guardar selectedGroqModel en localStorage cuando cambie
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('selectedGroqModelId', selectedGroqModel.id);
+    }
+  }, [selectedGroqModel]);
+
+  // Guardar sendToAll en localStorage cuando cambie
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sendToAll', String(sendToAll));
+    }
+  }, [sendToAll]);
+
   // Sincronizar mensajes cuando cambie el ID o initialMessages
   useEffect(() => {
     if (initialMessages.length > 0) {
